@@ -1,5 +1,6 @@
 (ns clj-puppetdb.core
-  (:require [clj-http.client :as http]
+  (:require [clojure.java.io :as io]
+            [puppetlabs.http.client.sync :as http]
             [cheshire.core :as json]))
 
 (defn connect
