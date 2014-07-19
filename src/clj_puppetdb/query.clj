@@ -8,7 +8,7 @@
    '< "<"
    '>= ">="
    '<= "<="
-;   '~ "~"
+   'match "~"
    'null? "null?"
    'nil? "null?"
    'or "or"
@@ -17,15 +17,6 @@
 (defn operator?
   [x]
   (contains? ops x))
-
-(defn- name-of
-  "Only used as a helper for query-walk. Gets the name of 
-  a named symbol. Without this, using ~ in a query has
-  weird behavior."
-  [x]
-  (case (name x)
-    "unquote" "~"
-    (name x)))
 
 (defn query-walk
   "This does most of the hard work for generating a query.
@@ -41,7 +32,6 @@
    (instance? java.util.regex.Pattern x) (str x)
    (instance? clojure.lang.Named x) (name x)
    (string? x) x
-   (= \~ (char x)) "~"
    :else x))
 
 (defn query'
@@ -56,10 +46,10 @@
   query and returns a JSON array suitable for sending to
   PuppetDB."
   [q]
-  `(json/encode (postwalk query-walk ~q)))
+  `(json/encode ~(postwalk query-walk q)))
 
 (defmacro qv
   "EXPERIMENTAL: return a Query Vector that can be turned into
   a JSON query later. This might let the expression include vars."
   [q]
-  (postwalk query-walk q))
+  `(postwalk query-walk ~q))
