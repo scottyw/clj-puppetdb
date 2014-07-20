@@ -39,9 +39,9 @@
 
 (s/defn ^:always-validate GET
   "Make a GET request using the given PuppetDB connection, returning the results
-  as a lazy sequence of maps with keyword keys. Doesn't support paging (yet).
+  as a lazy sequence of maps with keywordized keys. Doesn't support paging (yet).
 
-  The `path` argument should be a URL-encoded string."
+  The `path` argument must be a URL-encoded string."
   [connection :- Connection ^String path]
   (let [{:keys [host opts]} connection]
     (-> (http/get (str host path) opts)
@@ -49,8 +49,14 @@
         (json/decode keyword))))
 
 (defn query
+  "Use the given PuppetDB connection to query the server.
+  
+  The path argument should be a valid endpoint, e.g. \"/v4/nodes\".
+
+  The query-vec argument should be a vector representing an API query,
+  e.g. [:= [:fact \"operatingsystem\"] \"Linux\"]"
   ([conn path query-vec]
-     (let [query-string (-> query-vec q/query url-encode)
+     (let [query-string (-> query-vec q/query->json url-encode)
            url (str path "?query=" query-string)]
        (println "Querying:" url)
        (GET conn url)))

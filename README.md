@@ -82,6 +82,7 @@ Here are some notes/caveats:
 
 * Keywords, symbols, strings, numbers, regex literals, etc. all work and _are generally interchangeable_. For the sake of clarity, I recommend using keywords for operators and keys.
 * The `~` operator is definitely an exception. Because it's a [reader macro character](http://clojure.org/reader#The%20Reader--Macro%20characters), you can't use it in a symbol or keyword. Instead, use the string `"~"` or the keyword `:match`, which will be converted automatically.
+* If you're having a hard time getting your query to work, you can use `clj-puppetdb.query/query->json` to see the JSON representation of your query vector.
 * The excellent [PuppetDB Query Tutorial](http://docs.puppetlabs.com/puppetdb/latest/api/query/tutorial.html) has tons of great information and examples. Since JSON arrays are generally valid Clojure vectors, you can actually copy/paste those examples directly into a call to `clj-puppetdb/query`.
 
 ## Planned Features

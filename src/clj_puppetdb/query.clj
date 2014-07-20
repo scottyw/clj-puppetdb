@@ -10,7 +10,7 @@
   [x]
   (contains? ops x))
 
-(defn query-walk
+(defn- query-walk
   "This does most of the hard work for generating a query.
   It's intended to be applied recursively to each and every
   element of an expression to ensure that the final result
@@ -23,7 +23,7 @@
    (instance? java.util.regex.Pattern x) (str x)
    :else x))
 
-(defn query
+(defn query->json
   "Takes a vector approximating an API query (may include some conveniences
   like Clojure regex literals and the :match keyword) and converts it into
   JSON suitable for the API. Does not url-encode the query."
