@@ -5,6 +5,7 @@
 (deftest query->json-test
   (testing "The dreaded ~ operator"
     (is (= (query->json [:match :certname #"web\d+"])
+           (query->json ["~" :certname #"web\d+"])
            "[\"~\",\"certname\",\"web\\\\d+\"]")))
   (testing "Nested expressions"
     (is (= (query->json [:>= [:fact "uptime_days"] 10])
