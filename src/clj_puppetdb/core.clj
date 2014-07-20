@@ -1,13 +1,11 @@
 (ns clj-puppetdb.core
-  (:require [clj-puppetdb.schema :refer [Connection]]
-            [clj-puppetdb.query :as q]
-            [clj-puppetdb.util :refer [file?]]
-            [clojure.java.io :as io]
-            [puppetlabs.http.client.sync :as http]
+  (:require [cemerick.url :refer [url-encode]]
             [cheshire.core :as json]
-            [cemerick.url :refer [url-encode]]
-            [schema.core :as s])
-  (:refer-clojure :exclude [get]))
+            [clj-puppetdb.query :as q]
+            [clj-puppetdb.schema :refer [Connection]]
+            [clj-puppetdb.util :refer [file?]]
+            [puppetlabs.http.client.sync :as http]
+            [schema.core :as s]))
 
 (defn- make-https-connection
   [^String host {:keys [ssl-ca-cert ssl-cert ssl-key]}]
@@ -39,7 +37,7 @@
   ([^String host] (make-http-connection host))
   ([^String host opts] (make-https-connection host opts)))
 
-(s/defn- ^:always-validate get
+(s/defn ^:always-validate GET
   "Make a GET request using the given PuppetDB connection, returning the results
   as a lazy sequence of maps with keyword keys. Doesn't support paging (yet).
 
@@ -55,8 +53,8 @@
      (let [query-string (-> query-vec q/query url-encode)
            url (str path "?query=" query-string)]
        (println "Querying:" url)
-       (get conn url)))
-  ([conn path] (get conn path)))
+       (GET conn url)))
+  ([conn path] (GET conn path)))
 
 (comment
 (def conn
