@@ -3,18 +3,10 @@
             [cheshire.core :as json]))
 
 (def ops
-  {'= "="
-   '> ">"
-   '< "<"
-   '>= ">="
-   '<= "<="
-   'match "~"
-   'null? "null?"
-   'nil? "null?"
-   'or "or"
-   'and "and"})
+  {:match "~"
+   :nil? "null?"})
 
-(defn operator?
+(defn- operator?
   [x]
   (contains? ops x))
 
@@ -28,28 +20,12 @@
   [x]
   (cond
    (operator? x) (ops x)
-   (list? x) (vec x)
    (instance? java.util.regex.Pattern x) (str x)
-   (instance? clojure.lang.Named x) (name x)
-   (string? x) x
    :else x))
 
-(defn query'
-  "The function behind the query macro. Takes a quoted
-  S-expression and turns it into a JSON array. Call this
-  directly if you can't use the macro."
+(defn query
+  "Takes a vector approximating an API query (may include some conveniences
+  like Clojure regex literals and the :match keyword) and converts it into
+  JSON suitable for the API. Does not url-encode the query."
   [q]
   (json/encode (postwalk query-walk q)))
-
-(defmacro query
-  "Takes an unquoted S-expression representing a PuppetDB
-  query and returns a JSON array suitable for sending to
-  PuppetDB."
-  [q]
-  `(json/encode ~(postwalk query-walk q)))
-
-(defmacro qv
-  "EXPERIMENTAL: return a Query Vector that can be turned into
-  a JSON query later. This might let the expression include vars."
-  [q]
-  `(postwalk query-walk ~q))
