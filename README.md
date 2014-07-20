@@ -4,9 +4,9 @@ A Clojure library for accessing the [PuppetDB](http://docs.puppetlabs.com/puppet
 
 Highlights:
 
-1. Supports HTTPS with Puppet's certificates.
+1. Supports HTTPS with [Puppet's certificates](#create-a-new-connection-with-ssl-using-puppets-certificates).
 2. Provides syntactic sugar for [PuppetDB queries](#writing-puppetdb-queries).
-3. Results come back as a lazy sequence of maps with keywordified keys.
+3. Results come back as a lazy sequence of maps with keywordized keys.
 
 ## Usage
 
@@ -75,13 +75,13 @@ The `query` function also supports [PuppetDB queries](http://docs.puppetlabs.com
 ;; To find all Linux nodes with more than 30 days of uptime:
 (pdb/query conn "/v4/nodes" [:and
                               [:= [:fact "kernel"] "Linux"]
-                              [:> [:fact "uptime_days] 30]])
+                              [:> [:fact "uptime_days"] 30]])
 ```
 
 Here are some notes/caveats:
 
 * Keywords, symbols, strings, numbers, regex literals, etc. all work and _are generally interchangeable_. For the sake of clarity, I recommend using keywords for operators and keys.
-* The `"~"` operator is definitely an exception. Because it's a [reader macro character](http://clojure.org/reader#The%20Reader--Macro%20characters), you can't use it in a symbol or keyword. Instead, use the string `"~"` or the keyword `:match`, which will be converted automatically.
+* The `~` operator is definitely an exception. Because it's a [reader macro character](http://clojure.org/reader#The%20Reader--Macro%20characters), you can't use it in a symbol or keyword. Instead, use the string `"~"` or the keyword `:match`, which will be converted automatically.
 * The excellent [PuppetDB Query Tutorial](http://docs.puppetlabs.com/puppetdb/latest/api/query/tutorial.html) has tons of great information and examples. Since JSON arrays are generally valid Clojure vectors, you can actually copy/paste those examples directly into a call to `clj-puppetdb/query`.
 
 ## Planned Features
