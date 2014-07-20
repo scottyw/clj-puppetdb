@@ -32,7 +32,7 @@
  
   If the host begins with 'http://', that must be the only argument given.
 
-  Either way, you must specify the port as part of the hostname (usually ':8080' for
+  Either way, you must specify the port as part of the host URL (usually ':8080' for
   http or ':8081' for https)."
   ([^String host] (make-http-connection host))
   ([^String host opts] (make-https-connection host opts)))
