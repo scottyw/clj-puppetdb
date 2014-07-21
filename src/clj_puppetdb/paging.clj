@@ -35,14 +35,17 @@
 
 (defn refresh
   "Given a results map from a paging query, request and return the 
-  next set of results."
+  next set of results, or the empty list if there are no results."
   [{:keys [limit offset query]}]
   (let [new-offset (+ limit offset)]
     (println "Querying! Offset:" new-offset)
-    {:body (query new-offset limit)
-     :limit limit
-     :offset new-offset
-     :query query}))
+    (if-let [new-body (query new-offset limit)]
+      {:body new-body
+       :limit limit
+       :offset new-offset
+       :query query}
+      ;; return the empty list if there are no new results
+      ())))
 
 (defn refreshed
   "Given a results map, refreshes it if necessary. Otherwise, return
@@ -62,6 +65,14 @@
 
 (comment
 
+;; The status here is that the code mostly works, with the following caveats:
+;;  * The lazy-seq doesn't stop. It starts emitting nil when the results run out,
+;;    instead of just shutting down.
+;;  * The :offset key should be optional, but it's not. I think I was just associng
+;;    it in the wrong spot. I might have even fixed it by now...
+;;  * There should be a function that ties the whole thing together, including the
+;;    query-vec. I'm thinking lazy-query.
+  
 (require '[clojure.java.io :as io]
          '[clojure.pprint :refer [pprint]])
   
@@ -71,12 +82,25 @@
             :ssl-cert (io/file "/Users/justin/certs/cert.pem")
             :ssl-key (io/file "/Users/justin/certs/private.pem")}))
 
-(def facts
-  {:body () ;;   It's a problem that this is blank. The first element in the seq ends up being nil
-   :limit 5 ;; and the first five results are skipped. This structure should be initialized with real
-   :offset 0;; results.
-   :query (fn [offset limit]
-            (GET conn "/v4/facts" {:limit limit :offset offset
-                                   :order-by (json/encode [{:field :value :order :asc}])}))})
+(defn lazify-query
+  "Skip the query-vec for now.
+  In: conn, endpoint, config-map
+  Out: lazy-query-map with results initialized"
+  [conn path params]
+  (let [json-params (update-in params [:order-by] json/encode)
+        query-fn (fn [offset limit]
+                   (GET conn path (assoc json-params :offset offset)))
+        limit (:limit params)
+        offset (get params :offset 0)]
+    {:body (query-fn offset limit)
+     :limit limit
+     :offset offset
+     :query query-fn}))
+
+(def lazy-fact-map
+  (lazify-query conn "/v4/facts" {:limit 5 :offset 0 :order-by [{:field :value :order "asc"}]}))
+
+(def lazy-facts
+  (lazy-page lazy-fact-map))
 
 )
