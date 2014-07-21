@@ -1,5 +1,5 @@
 (ns clj-puppetdb.core
-  (:require [cemerick.url :refer [url-encode]]
+  (:require [cemerick.url :refer [url-encode map->query]]
             [cheshire.core :as json]
             [clj-puppetdb.query :as q]
             [clj-puppetdb.schema :refer [Connection]]
@@ -41,12 +41,20 @@
   "Make a GET request using the given PuppetDB connection, returning the results
   as a lazy sequence of maps with keywordized keys. Doesn't support paging (yet).
 
-  The `path` argument must be a URL-encoded string."
-  [connection :- Connection ^String path]
-  (let [{:keys [host opts]} connection]
-    (-> (http/get (str host path) opts)
-        :body
-        (json/decode keyword))))
+  The `path` argument must be a URL-encoded string.
+
+  You may provide a set of querystring parameters as a map. These will be added to
+  the path."
+  ([connection :- Connection ^String path]
+     (println "GET:" path)
+     (let [{:keys [host opts]} connection]
+       (-> (http/get (str host path) opts)
+           :body
+           (json/decode keyword))))
+  ([connection path params]
+     (let [query-params (map->query params)
+           new-path (str path "?" query-params)]
+       (GET connection new-path))))
 
 (defn query
   "Use the given PuppetDB connection to query the server.
@@ -56,13 +64,15 @@
   The query-vec argument should be a vector representing an API query,
   e.g. [:= [:fact \"operatingsystem\"] \"Linux\"]"
   ([conn path query-vec]
-     (let [query-string (-> query-vec q/query->json url-encode)
-           url (str path "?query=" query-string)]
-       (println "Querying:" url)
-       (GET conn url)))
+     (let [query-string (q/query->json query-vec)]
+       (GET conn path {:query query-string})))
   ([conn path] (GET conn path)))
 
 (comment
+
+(require '[clojure.java.io :as io]
+         '[clojure.pprint :refer [pprint]])
+
 (def conn
   (connect "https://puppetdb:8081"
            {:ssl-ca-cert (io/file "/Users/justin/certs/ca.pem")
