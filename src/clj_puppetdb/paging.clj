@@ -9,6 +9,16 @@
 ;; the spec, but this is really rough.
 
 
+;; (Hypothetical) usage examples:
+;; (lazy-query "/v4/facts" [:= :certname "clojure"] {:order-by [{:field :value :order :desc}] :limit 5 :offset 0})
+;; (lazy-query "/v4/nodes" {:order-by [{:field :value :order :desc}] :limit 5 :offset 0})
+;; 
+;; The real difference here (obviously) is the extra map at the end. The only thing here that should be optional is :offset. The rest really should be explicit.
+;;
+;; Some other notes:
+;;  * :order-by has to be JSON-encoded first. It works just fine in the REPL so far.
+;;  * Make sure to check for actual results! The lazy-seq won't be infinite. It should end.
+
 (def ex
   {:body '(1 2 3 4 5)
    :limit 5
