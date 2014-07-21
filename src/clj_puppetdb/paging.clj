@@ -1,4 +1,6 @@
-(ns clj-puppetdb.paging)
+(ns clj-puppetdb.paging
+  (:require [clj-puppetdb.core :refer [connect GET]]
+            [cheshire.core :as json]))
 
 ;; This is a sketch to show how results can be paged through transparently
 ;; using lazy-seq. The `ex` map shows what the results might look like.
@@ -56,3 +58,25 @@
     (cons
       (first (:body results))
       (lazy-page (refreshed results)))))
+
+
+(comment
+
+(require '[clojure.java.io :as io]
+         '[clojure.pprint :refer [pprint]])
+  
+(def conn
+  (connect "https://puppetdb:8081"
+           {:ssl-ca-cert (io/file "/Users/justin/certs/ca.pem")
+            :ssl-cert (io/file "/Users/justin/certs/cert.pem")
+            :ssl-key (io/file "/Users/justin/certs/private.pem")}))
+
+(def facts
+  {:body () ;;   It's a problem that this is blank. The first element in the seq ends up being nil
+   :limit 5 ;; and the first five results are skipped. This structure should be initialized with real
+   :offset 0;; results.
+   :query (fn [offset limit]
+            (GET conn "/v4/facts" {:limit limit :offset offset
+                                   :order-by (json/encode [{:field :value :order :asc}])}))})
+
+)
