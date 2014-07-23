@@ -35,17 +35,15 @@
 
 (defn refresh
   "Given a results map from a paging query, request and return the 
-  next set of results, or the empty list if there are no results."
+  next set of results."
   [{:keys [limit offset query]}]
-  (let [new-offset (+ limit offset)]
+  (let [new-offset (+ limit offset)
+        new-body (query new-offset limit)]
     (println "Querying! Offset:" new-offset)
-    (if-let [new-body (query new-offset limit)]
-      {:body new-body
-       :limit limit
-       :offset new-offset
-       :query query}
-      ;; return the empty list if there are no new results
-      ())))
+    {:body new-body
+     :limit limit
+     :offset new-offset
+     :query query}))
 
 (defn refreshed
   "Given a results map, refreshes it if necessary. Otherwise, return
@@ -60,7 +58,10 @@
   (lazy-seq
     (cons
       (first (:body results))
-      (lazy-page (refreshed results)))))
+      (let [new-results (refreshed results)] ;; can't use if-let here because this will always be truthy
+        (if (seq (:body new-results)) ;; if there actually are results in there...
+          (lazy-page new-results) ;; recur with them
+          '()))))) ;; otherwise terminate the lazy-seq
 
 
 (comment
