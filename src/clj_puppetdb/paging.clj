@@ -1,39 +1,21 @@
 (ns clj-puppetdb.paging
   (:require [clj-puppetdb.core :refer [connect GET]]
+            [clj-puppetdb.query :as q]
             [cheshire.core :as json]))
 
-;; This is a sketch to show how results can be paged through transparently
-;; using lazy-seq. The `ex` map shows what the results might look like.
-;; :query would/should be a fn that can be called with an offset and limit
-;; to get the next set of results.
-
-;; The lazy-page function will actually work with any map that matches
-;; the spec, but this is really rough.
+;; TODO:
+;; - The first set of results gets queried immediately.
+;;   That's not that lazy.
+;; - This namespace is positively RIPE for refactoring.
 
 
-;; (Hypothetical) usage examples:
-;; (lazy-query "/v4/facts" [:= :certname "clojure"] {:order-by [{:field :value :order :desc}] :limit 5 :offset 0})
-;; (lazy-query "/v4/nodes" {:order-by [{:field :value :order :desc}] :limit 5 :offset 0})
-;; 
-;; The real difference here (obviously) is the extra map at the end. The only thing here that should be optional is :offset. The rest really should be explicit.
-;;
-;; Some other notes:
-;;  * :order-by has to be JSON-encoded first. It works just fine in the REPL so far.
-;;  * Make sure to check for actual results! The lazy-seq won't be infinite. It should end.
-
-(def ex
-  {:body '(1 2 3 4 5)
-   :limit 5
-   :offset 0
-   :query (fn [offset limit] (range offset (+ offset limit)))})
-
-(defn falling-behind?
+(defn- falling-behind?
   "Returns true if the results map contains <= 1 result."
   [results]
   (>= 1
       (count (:body results))))
 
-(defn refresh
+(defn- refresh
   "Given a results map from a paging query, request and return the 
   next set of results."
   [{:keys [limit offset query]}]
@@ -45,7 +27,7 @@
      :offset new-offset
      :query query}))
 
-(defn refreshed
+(defn- refreshed
   "Given a results map, refreshes it if necessary. Otherwise, return
   the results without the first element in the body."
   [results]
@@ -53,7 +35,7 @@
     (refresh results)
     (update-in results [:body] rest)))
 
-(defn lazy-page
+(defn- lazy-page
   [results]
   (lazy-seq
     (cons
@@ -63,17 +45,42 @@
           (lazy-page new-results) ;; recur with them
           '()))))) ;; otherwise terminate the lazy-seq
 
+(defn- lazify-query
+  "Returns a map containing initial results with enough contextual data
+  to request the next set of results."
+  ([conn path params]
+     (let [json-params (update-in params [:order-by] json/encode)
+           query-fn (fn [offset limit]
+                      (GET conn path (assoc json-params :offset offset)))
+           limit (:limit params)
+           offset (get params :offset 0)]
+       {:body (query-fn offset limit)
+        :limit limit
+        :offset offset
+        :query query-fn}))
+  ([conn path query-vec params]
+     (let [params-with-query (assoc params :query (q/query->json query-vec))]
+       (lazify-query conn path params-with-query))))
+
+(defn lazy-query
+  "Return a lazy sequence of results from the given query. Unlike the regular
+  `query` function, `lazy-query` uses paging to fetch results gradually, making
+  it especially lazy.
+  
+  The `params` map is required, and should contain the following keys:
+  - :limit (the number of results to request)
+  - :offset (optional: the index of the first result to return, default 0)
+  - :order-by (a vector of maps, each specifying a :field and an :order key)
+  For example: `{:limit 100 :offset 0 :order-by [{:field \"value\" :order \"asc\"}]}`"
+  ([connection path params]
+     (-> (lazify-query connection path params)
+         lazy-page))
+  ([connection path query-vec params]
+     (-> (lazify-query connection path query-vec params)
+         lazy-page)))
 
 (comment
 
-;; The status here is that the code mostly works, with the following caveats:
-;;  * The lazy-seq doesn't stop. It starts emitting nil when the results run out,
-;;    instead of just shutting down.
-;;  * The :offset key should be optional, but it's not. I think I was just associng
-;;    it in the wrong spot. I might have even fixed it by now...
-;;  * There should be a function that ties the whole thing together, including the
-;;    query-vec. I'm thinking lazy-query.
-  
 (require '[clojure.java.io :as io]
          '[clojure.pprint :refer [pprint]])
   
@@ -83,25 +90,8 @@
             :ssl-cert (io/file "/Users/justin/certs/cert.pem")
             :ssl-key (io/file "/Users/justin/certs/private.pem")}))
 
-(defn lazify-query
-  "Skip the query-vec for now.
-  In: conn, endpoint, config-map
-  Out: lazy-query-map with results initialized"
-  [conn path params]
-  (let [json-params (update-in params [:order-by] json/encode)
-        query-fn (fn [offset limit]
-                   (GET conn path (assoc json-params :offset offset)))
-        limit (:limit params)
-        offset (get params :offset 0)]
-    {:body (query-fn offset limit)
-     :limit limit
-     :offset offset
-     :query query-fn}))
-
-(def lazy-fact-map
-  (lazify-query conn "/v4/facts" {:limit 5 :offset 0 :order-by [{:field :value :order "asc"}]}))
-
 (def lazy-facts
-  (lazy-page lazy-fact-map))
+  (lazy-query conn "/v4/facts"
+              {:limit 100 :offset 0 :order-by [{:field :value :order "asc"}]}))
 
 )
