@@ -9,12 +9,6 @@
 ;;   (because a query has already failed).
 ;; - This namespace is positively RIPE for refactoring.
 
-(defn- falling-behind?
-  "Returns true if the results map contains <= 1 result."
-  [results]
-  (zero?
-      (count (:body results))))
-
 (defn- refresh
   "Given a results map from a paging query, request and return the 
   next set of results."
@@ -31,7 +25,7 @@
   "Given a results map, refreshes it if necessary. Otherwise, return
   the results without the first element in the body."
   [results]
-  (if (falling-behind? results)
+  (if (empty? (:body results))
     (refresh results)
     results))
 
