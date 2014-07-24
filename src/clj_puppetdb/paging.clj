@@ -4,11 +4,10 @@
             [cheshire.core :as json]))
 
 ;; TODO:
-;; - The way that results are refreshed usually causes an extra query:
-;;   we should only request more results if the last query returned the
-;;   limit.
 ;; - There should be some schema checking in here
-;; - This namespace is positively RIPE for refactoring.
+;; - There are no more extra API calls, but I'm not totally
+;;   pleased with the way I got there. It's not as clear as
+;;   I'd like it to be.
 
 (defn- refresh
   "Given a results map from a paging query, request and return the 
@@ -19,7 +18,10 @@
     {:body new-body
      :limit limit
      :offset (+ limit offset)
-     :query query}))
+     :query (if (= limit (count new-body)) ;; if we hit the limit
+              query ;; put the query back,
+              ;; otherwise return a dummy query fn              
+              (constantly nil))}))
 
 (defn- ensure-refreshed
   "Given a results map, refreshes it if necessary. Otherwise, return
@@ -90,12 +92,5 @@
 (def lazy-facts
   (lazy-query conn "/v4/facts"
               {:limit 100 :offset 0 :order-by [{:field :value :order "asc"}]}))
-
-(def lazy-nodes
-  (lazy-query conn "/v4/nodes"
-              {:limit 1 :offset 0 :order-by [{:field :certname :order "asc"}]}))
-
-(def facts
-  (set (pdb/query conn "/v4/facts")))
 
 )
