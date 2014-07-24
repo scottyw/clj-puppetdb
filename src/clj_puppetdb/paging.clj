@@ -8,7 +8,6 @@
 ;;   That's not that lazy.
 ;; - This namespace is positively RIPE for refactoring.
 
-
 (defn- falling-behind?
   "Returns true if the results map contains <= 1 result."
   [results]
@@ -27,7 +26,7 @@
      :offset new-offset
      :query query}))
 
-(defn- refreshed
+(defn- ensure-refreshed
   "Given a results map, refreshes it if necessary. Otherwise, return
   the results without the first element in the body."
   [results]
@@ -38,12 +37,10 @@
 (defn- lazy-page
   [results]
   (lazy-seq
-    (cons
-      (first (:body results))
-      (let [new-results (refreshed results)] ;; can't use if-let here because this will always be truthy
-        (if (seq (:body new-results)) ;; if there actually are results in there...
-          (lazy-page new-results) ;; recur with them
-          '()))))) ;; otherwise terminate the lazy-seq
+   (when (seq (:body results))
+      (cons
+       (first (:body results))
+       (lazy-page (ensure-refreshed results))))))
 
 (defn- lazify-query
   "Returns a map containing initial results with enough contextual data
