@@ -4,34 +4,35 @@
             [cheshire.core :as json]))
 
 ;; TODO:
-;; - The way that results are refreshed causes an extra query
-;;   even when we _know_ that there will not be any further results
-;;   (because a query has already failed).
-;;   ... maybe put a check in `refresh`?
+;; - The way that results are refreshed usually causes an extra query:
+;;   we should only request more results if the last query returned the
+;;   limit.
 ;; - There should be some schema checking in here
 ;; - This namespace is positively RIPE for refactoring.
 
 (defn- refresh
   "Given a results map from a paging query, request and return the 
-  next set of results."
+  map with the next set of results, or return nil if there are no
+  more results."
   [{:keys [limit offset query]}]
-  (let [new-body (query offset)
-        new-offset (+ limit offset)]
-    (println "Querying! Offset:" new-offset)
+  (when-let [new-body (query offset)]
     {:body new-body
      :limit limit
-     :offset new-offset
+     :offset (+ limit offset)
      :query query}))
 
 (defn- ensure-refreshed
   "Given a results map, refreshes it if necessary. Otherwise, return
-  the results unchanged."
+  the results unchanged. The return value will be nil if the results
+  have been exhausted."
   [results]
   (if (empty? (:body results))
     (refresh results)
     results))
 
 (defn- lazy-page
+  "Return a lazy sequence of results from the given results map,
+  requesting further results from the PuppetDB server as needed."
   [results]
   (lazy-seq
     (let [refreshed (ensure-refreshed results)]
@@ -90,13 +91,9 @@
   (lazy-query conn "/v4/facts"
               {:limit 100 :offset 0 :order-by [{:field :value :order "asc"}]}))
 
-(def lazy-fact-map
-  (lazify-query conn "/v4/facts"
-                {:limit 100 :offset 0 :order-by [{:field :name :order "asc"}]}))
-
-
-(def lazy-fact-results
-                       (set (take 300 (lazy-page lazy-fact-map))))
+(def lazy-nodes
+  (lazy-query conn "/v4/nodes"
+              {:limit 1 :offset 0 :order-by [{:field :certname :order "asc"}]}))
 
 (def facts
   (set (pdb/query conn "/v4/facts")))
