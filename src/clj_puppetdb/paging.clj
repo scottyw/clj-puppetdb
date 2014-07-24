@@ -7,13 +7,15 @@
 ;; - The way that results are refreshed causes an extra query
 ;;   even when we _know_ that there will not be any further results
 ;;   (because a query has already failed).
+;;   ... maybe put a check in `refresh`?
+;; - There should be some schema checking in here
 ;; - This namespace is positively RIPE for refactoring.
 
 (defn- refresh
   "Given a results map from a paging query, request and return the 
   next set of results."
   [{:keys [limit offset query]}]
-  (let [new-body (query offset limit)
+  (let [new-body (query offset)
         new-offset (+ limit offset)]
     (println "Querying! Offset:" new-offset)
     {:body new-body
@@ -23,7 +25,7 @@
 
 (defn- ensure-refreshed
   "Given a results map, refreshes it if necessary. Otherwise, return
-  the results without the first element in the body."
+  the results unchanged."
   [results]
   (if (empty? (:body results))
     (refresh results)
@@ -43,7 +45,7 @@
   to request the next set of results."
   ([conn path params]
      (let [json-params (update-in params [:order-by] json/encode)
-           query-fn (fn [offset limit]
+           query-fn (fn [offset]
                       (GET conn path (assoc json-params :offset offset)))
            limit (:limit params)
            offset (get params :offset 0)]
