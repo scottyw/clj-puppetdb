@@ -1,6 +1,7 @@
 (ns clj-puppetdb.core
   (:require [cemerick.url :refer [url-encode map->query]]
             [cheshire.core :as json]
+            [clj-puppetdb.paging :as paging]
             [clj-puppetdb.query :as q]
             [clj-puppetdb.schema :refer [Client]]
             [clj-puppetdb.util :refer [file?]]
@@ -67,6 +68,21 @@
      (let [query-string (q/query->json query-vec)]
        (GET client path {:query query-string})))
   ([client path] (GET client path)))
+
+(defn lazy-query
+  "Return a lazy sequence of results from the given query. Unlike the regular
+  `query` function, `lazy-query` uses paging to fetch results gradually as they
+  are consumed.
+  
+  The `params` map is required, and should contain the following keys:
+  - :limit (the number of results to request)
+  - :offset (optional: the index of the first result to return, default 0)
+  - :order-by (a vector of maps, each specifying a :field and an :order key)
+  For example: `{:limit 100 :offset 0 :order-by [{:field \"value\" :order \"asc\"}]}`"
+  ([client path params]
+     (paging/lazy-query client path params))
+  ([client path query-vec params]
+     (paging/lazy-query client path query-vec params)))
 
 (comment
 

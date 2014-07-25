@@ -1,6 +1,6 @@
 (ns clj-puppetdb.paging
   (:require [clj-puppetdb.core :refer [connect GET]]
-            [clj-puppetdb.schema :refer [PagingParams Connection]]
+            [clj-puppetdb.schema :refer [PagingParams Client]]
             [clj-puppetdb.query :as q]
             [cheshire.core :as json]
             [schema.core :as s]))
@@ -71,21 +71,3 @@
   ([client path query-vec params :- PagingParams]
      (-> (lazify-query client path query-vec params)
          lazy-page)))
-
-(comment
-
-(require '[clojure.java.io :as io]
-         '[clojure.pprint :refer [pprint]]
-         '[clj-puppetdb.core :as pdb])
-  
-(def client
-  (connect "https://puppetdb:8081"
-           {:ssl-ca-cert (io/file "/Users/justin/certs/ca.pem")
-            :ssl-cert (io/file "/Users/justin/certs/cert.pem")
-            :ssl-key (io/file "/Users/justin/certs/private.pem")}))
-
-(def lazy-facts
-  (lazy-query client "/v4/facts"
-              {:limit 100 :offset 0 :order-by [{:field :value :order "asc"}]}))
-
-)
