@@ -2,11 +2,14 @@
 
 A Clojure library for accessing the [PuppetDB](http://docs.puppetlabs.com/puppetdb/latest) [REST API](http://docs.puppetlabs.com/puppetdb/latest/api/index.html).
 
+![](https://clojars.org/clj-puppetdb/latest-version.svg)
+
 Highlights:
 
 1. Supports HTTPS with [Puppet's certificates](#create-a-new-connection-with-ssl-using-puppets-certificates).
 2. Provides syntactic sugar for [PuppetDB queries](#writing-puppetdb-queries).
 3. Results come back as a lazy sequence of maps with keywordized keys.
+4. Supports paged queries, which come back as a complete (but lazy) set of results.
 
 ## Usage
 
