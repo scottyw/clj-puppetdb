@@ -5,9 +5,7 @@
 
 ;; TODO:
 ;; - There should be some schema checking in here
-;; - There are no more extra API calls, but I'm not totally
-;;   pleased with the way I got there. It's not as clear as
-;;   I'd like it to be.
+
 
 (defn- refresh
   "Given a results map from a paging query, request and return the 
@@ -25,8 +23,8 @@
 
 (defn- ensure-refreshed
   "Given a results map, refreshes it if necessary. Otherwise, return
-  the results unchanged. The return value will be nil if the results
-  have been exhausted."
+  the results unchanged. Never returns a map with an empty body; 
+  The return value will be nil if the results have been exhausted."
   [results]
   (if (empty? (:body results))
     (refresh results)
@@ -37,11 +35,10 @@
   requesting further results from the PuppetDB server as needed."
   [results]
   (lazy-seq
-    (let [refreshed (ensure-refreshed results)]
-      (when (seq (:body refreshed))
-        (cons
-          (first (:body refreshed))
-          (lazy-page (update-in refreshed [:body] rest)))))))
+    (when-let [refreshed (ensure-refreshed results)]
+      (cons
+        (first (:body refreshed))
+        (lazy-page (update-in refreshed [:body] rest))))))
 
 (defn- lazify-query
   "Returns a map containing initial results with enough contextual data
@@ -62,8 +59,8 @@
 
 (defn lazy-query
   "Return a lazy sequence of results from the given query. Unlike the regular
-  `query` function, `lazy-query` uses paging to fetch results gradually, making
-  it especially lazy.
+  `query` function, `lazy-query` uses paging to fetch results gradually as they
+  are consumed.
   
   The `params` map is required, and should contain the following keys:
   - :limit (the number of results to request)
