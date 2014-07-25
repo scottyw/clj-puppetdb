@@ -1,8 +1,8 @@
 (ns clj-puppetdb.schema
   (:require [schema.core :refer [Any Str Int Keyword] :as s]))
 
-(def Connection
-  "Schema for PuppetDB connections. Note: doesn't check that
+(def Client
+  "Schema for PuppetDB client maps. Note: doesn't check that
   the certs (if provided) actually exist."
   {:host Str
    :opts (s/either {:ssl-ca-cert java.io.File
