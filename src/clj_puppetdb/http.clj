@@ -36,7 +36,7 @@
   You may provide a set of querystring parameters as a map. These will be url-encoded
   automatically and added to the path."
   ([client :- Client ^String path]
-     (println "GET:" path)
+     #_(println "GET:" path) ;; uncomment this to watch queries
      (let [{:keys [host opts]} client]
        (-> (http/get (str host path) opts)
            :body

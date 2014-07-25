@@ -1,4 +1,4 @@
-(defproject clj-puppetdb "0.1.0"
+(defproject clj-puppetdb "0.1.1"
   :description "A Clojure client for the PuppetDB REST API"
   :url "https://github.com/holguinj/clj-puppetdb"
   :license {:name "Apache License, Version 2.0"
