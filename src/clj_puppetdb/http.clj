@@ -40,6 +40,7 @@
      (let [{:keys [host opts]} client]
        (-> (http/get (str host path) opts)
            :body
+           slurp
            (json/decode keyword))))
   ([client path params]
      (let [query-params (map->query params)
