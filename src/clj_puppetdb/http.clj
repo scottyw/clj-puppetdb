@@ -38,9 +38,8 @@
   ([client :- Client ^String path]
      #_(println "GET:" path) ;; uncomment this to watch queries
      (let [{:keys [host opts]} client]
-       (-> (http/get (str host path) opts)
+       (-> (http/get (str host path) (assoc opts :as :text))
            :body
-           slurp
            (json/decode keyword))))
   ([client path params]
      (let [query-params (map->query params)
