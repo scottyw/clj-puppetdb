@@ -36,16 +36,16 @@
     (query client path nil nil))
   ([client path query-vec]
     (query client path query-vec nil))
-  ([client path query-vec paging-params]
-    (let [params (-> nil
-                     (merge
-                       (when query-vec
-                         {:query (q/query->json query-vec)}))
-                     (merge
-                       (when paging-params
-                         (update-in paging-params [:order-by] json/encode))))]
-      (if params
-        (GET client path params)
+  ([client path query-vec params]
+    (let [merged-params (-> nil
+                            (merge
+                              (when query-vec
+                                {:query (q/query->json query-vec)}))
+                            (merge
+                              (when params
+                                (update-in params [:order-by] json/encode))))]
+      (if merged-params
+        (GET client path merged-params)
         (GET client path)))))
 
 (defn lazy-query
