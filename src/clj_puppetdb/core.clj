@@ -19,23 +19,26 @@
   ([^String host] (http/make-http-client host))
   ([^String host opts] (http/make-https-client host opts)))
 
-(defn query
+(defn query-with-metadata
   "Use the given PuppetDB client to query the server.
-  
+
   The path argument should be a valid endpoint, e.g. \"/v4/nodes\".
 
   The query-vec argument is optional, and should be a vector representing an API query,
   e.g. [:= [:fact \"operatingsystem\"] \"Linux\"]
 
-  The `params` map is optional, and should contain the following keys:
-  - :limit (the number of results to request)
-  - :offset (optional: the index of the first result to return, default 0)
+  The params map is optional, and can contain any of the following keys:
   - :order-by (a vector of maps, each specifying a :field and an :order key)
-  For example: `{:limit 100 :offset 0 :order-by [{:field \"value\" :order \"asc\"}]}`"
-  ([client path]
-    (query client path nil nil))
-  ([client path query-vec]
-    (query client path query-vec nil))
+  - :limit (the number of results to request)
+  - :offset (the index of the first result to return, defaults to 0)
+  - :include-total (boolean indicating whether to return the total number of records available)
+  For example: `{:limit 100 :offset 0 :order-by [{:field \"value\" :order \"asc\"}] :include-total true}`
+
+  This function returns two maps in a vector. The first map is the query result as returned by 'query'. The second
+  contains additional metadata. Currently the only supported kind of metadata is:
+  - :total (the total number of records available)"
+  ([client path params]
+    (query-with-metadata client path nil params))
   ([client path query-vec params]
     (let [merged-params (-> nil
                             (merge
@@ -44,9 +47,19 @@
                             (merge
                               (when params
                                 (update-in params [:order-by] json/encode))))]
-      (if merged-params
-        (GET client path merged-params)
-        (GET client path)))))
+      (GET client path merged-params))))
+
+(defn query
+  "Use the given PuppetDB client to query the server.
+
+  The path argument should be a valid endpoint, e.g. \"/v4/nodes\".
+
+  The query-vec argument is optional, and should be a vector representing an API query,
+  e.g. [:= [:fact \"operatingsystem\"] \"Linux\"]"
+  ([client path]
+    (first (query-with-metadata client path nil nil)))
+  ([client path query-vec]
+    (first (query-with-metadata client path query-vec nil))))
 
 (defn lazy-query
   "Return a lazy sequence of results from the given query. Unlike the regular
