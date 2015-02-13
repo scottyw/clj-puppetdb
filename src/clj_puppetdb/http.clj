@@ -38,11 +38,15 @@
   ([client :- Client ^String path]
     #_(println "GET:" path)                                 ;; uncomment this to watch queries
     (let [{:keys [host opts]} client
-          response (http/get (str host path) (assoc opts :as :text))]
-      [(-> response :body (json/decode keyword))
-       (if-let [total (get-in response [:headers "x-records"])]
-         {:total total})]))
+          response (http/get (str host path) (assoc opts :as :text))
+          body (-> response
+                   :body
+                   (json/decode keyword))
+          headers (:headers response)]
+      [body headers]))
   ([client path params]
-    (let [query-params (map->query params)
-          new-path (str path "?" query-params)]
-      (GET client new-path))))
+    (if (empty? params)
+      (GET client path)
+      (let [query-params (map->query params)
+            new-path (str path "?" query-params)]
+        (GET client new-path)))))

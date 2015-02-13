@@ -40,14 +40,15 @@
   ([client path params]
     (query-with-metadata client path nil params))
   ([client path query-vec params]
-    (let [merged-params (-> nil
-                            (merge
-                              (when query-vec
-                                {:query (q/query->json query-vec)}))
-                            (merge
-                              (when params
-                                (update-in params [:order-by] json/encode))))]
-      (GET client path merged-params))))
+    (let [merged-params (merge {}
+                               (if query-vec
+                                 {:query (q/query->json query-vec)})
+                               (if params
+                                 (update-in params [:order-by] json/encode)))
+          [body headers] (GET client path merged-params)
+          total (get headers "x-records")
+          metadata (if total {:total total})]
+      [body metadata])))
 
 (defn query
   "Use the given PuppetDB client to query the server.
@@ -57,7 +58,7 @@
   The query-vec argument is optional, and should be a vector representing an API query,
   e.g. [:= [:fact \"operatingsystem\"] \"Linux\"]"
   ([client path]
-    (first (query-with-metadata client path nil nil)))
+    (first (query-with-metadata client path nil)))
   ([client path query-vec]
     (first (query-with-metadata client path query-vec nil))))
 
