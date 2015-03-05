@@ -137,4 +137,6 @@ Here are some things that I'm working on that will hopefully make this library a
 
 ## License
 
-Copyright © 2014 Justin Holguin
+Apache License Version 2.0
+
+Copyright © 2015 Justin Holguin / Puppet Labs
