@@ -1,4 +1,4 @@
-(defproject puppetlabs/clj-puppetdb "0.1.2-SNAPSHOT"
+(defproject puppetlabs/clj-puppetdb "0.1.3-SNAPSHOT"
   :description "A Clojure client for the PuppetDB REST API"
   :url "https://github.com/puppetlabs/clj-puppetdb"
   :license {:name "Apache License, Version 2.0"
@@ -21,5 +21,4 @@
   :repl-options {:init (do (require 'spyscope.core)
                            (use 'clj-puppetdb.testutils.repl))}
   :profiles {:dev {:dependencies [[org.clojure/tools.namespace "0.2.5"]
-                                  [ring-mock "0.1.5"]
                                   [spyscope "0.1.5"]]}})
