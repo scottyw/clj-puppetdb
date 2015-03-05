@@ -16,8 +16,8 @@
 
   Either way, you must specify the port as part of the host URL (usually ':8080' for
   http or ':8081' for https)."
-  ([^String host] (http/make-http-client host))
-  ([^String host opts] (http/make-https-client host opts)))
+  ([^String host] (connect host {}))
+  ([^String host opts] (http/make-client host opts)))
 
 (defn query-with-metadata
   "Use the given PuppetDB client to query the server.
