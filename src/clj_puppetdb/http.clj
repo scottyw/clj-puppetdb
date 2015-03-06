@@ -4,7 +4,6 @@
             [clj-puppetdb.schema :refer [Client]]
             [clj-puppetdb.util :refer [file?]]
             [clj-puppetdb.vcr :refer [vcr-get]]
-            [pandect.algo.sha1 :refer [sha1]]
             [puppetlabs.http.client.sync :as http]
             [schema.core :as s]))
 
