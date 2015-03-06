@@ -1,4 +1,4 @@
-(ns clj-puppetdb.http-test
+(ns clj-puppetdb.vcr-test
   (:require [clojure.test :refer :all]
             [clj-puppetdb.core :refer :all]
             [clj-puppetdb.http :refer :all]

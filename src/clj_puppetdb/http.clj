@@ -3,11 +3,9 @@
             [cheshire.core :as json]
             [clj-puppetdb.schema :refer [Client]]
             [clj-puppetdb.util :refer [file?]]
-            [clojure.edn :as edn]
-            [me.raynes.fs :as fs]
+            [clj-puppetdb.vcr :refer [vcr-get]]
             [pandect.algo.sha1 :refer [sha1]]
             [puppetlabs.http.client.sync :as http]
-            [puppetlabs.kitchensink.core :refer [dissoc-in]]
             [schema.core :as s]))
 
 ;; TODO:
@@ -40,29 +38,12 @@
     (.startsWith host "https://") (make-https-client host opts)
     :else (throw (IllegalArgumentException. "Host must start either http:// or https://"))))
 
-(defn- vcr-filename
-  [vcr-dir path]
-  (str vcr-dir "/" (sha1 path) ".clj"))
-
-(defn- vcr-transform
-  [response]
-  "Transform the response to avoid serialization problems"
-  (dissoc-in response [:content-type :charset]))
-
-(defn- vcr-get
+(defn- http-get
+  "Decide whether to use the VCR to service the get request"
   [path opts vcr-dir]
-  "VCR-enabled version of GET that will check for a file containing a response first. If none is found a real GET
-  request is made and the response recorded for the future."
-  (if-not vcr-dir
-    (http/get path opts)
-    (let [file (vcr-filename vcr-dir path)]
-      (when-not (fs/exists? file)
-        (let [response (vcr-transform (http/get path opts))]
-          (fs/mkdirs (fs/parent file))
-          (spit file response)))
-      ; Always read from the file - even if we just wrote it - to fast-fail on serialization errors
-      ; (at the expense of performance)
-      (edn/read-string (slurp file)))))
+  (if vcr-dir
+    (vcr-get path opts vcr-dir)
+    (http/get path opts)))
 
 (s/defn ^:always-validate GET
   "Make a GET request using the given PuppetDB client, returning the results
@@ -77,7 +58,7 @@
     (let [{:keys [host opts]} client
           vcr-dir (:vcr-dir opts)
           opts (dissoc opts :vcr-dir)
-          response (vcr-get (str host path) (assoc opts :as :text) vcr-dir)
+          response (http-get (str host path) (assoc opts :as :text) vcr-dir)
           body (-> response
                    :body
                    (json/decode keyword))
