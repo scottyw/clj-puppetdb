@@ -1,13 +1,13 @@
 (ns clj-puppetdb.vcr
   (:require [clojure.edn :as edn]
             [me.raynes.fs :as fs]
-            [pandect.algo.sha1 :refer [sha1]]
+            [puppetlabs.kitchensink.core :refer [utf8-string->sha1]]
             [puppetlabs.http.client.sync :as http]
             [puppetlabs.kitchensink.core :refer [dissoc-in]]))
 
 (defn- vcr-filename
   [vcr-dir path]
-  (str vcr-dir "/" (sha1 path) ".clj"))
+  (str vcr-dir "/" (utf8-string->sha1 path) ".clj"))
 
 (defn- vcr-transform
   [response]
