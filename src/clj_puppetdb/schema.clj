@@ -6,9 +6,10 @@
   the certs (if provided) actually exist."
   {:host Str
    :opts (s/either {:ssl-ca-cert java.io.File
-                    :ssl-cert java.io.File
-                    :ssl-key java.io.File}
-                   {})})
+                    :ssl-cert    java.io.File
+                    :ssl-key     java.io.File
+                    :vcr-dir     (s/maybe Str)}
+                   {:vcr-dir (s/maybe Str)})})
 
 (def PagingParams
   "Schema for params passed to lazy-query."

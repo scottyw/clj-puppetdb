@@ -3,6 +3,7 @@
             [cheshire.core :as json]
             [clj-puppetdb.schema :refer [Client]]
             [clj-puppetdb.util :refer [file?]]
+            [clj-puppetdb.vcr :refer [vcr-get]]
             [puppetlabs.http.client.sync :as http]
             [schema.core :as s]))
 
@@ -10,22 +11,38 @@
 ;;   - Validate schema for GET params. The GetParams schema
 ;;     exists, but needs work before it can be used.
 
-(defn make-https-client
-  [^String host {:keys [ssl-ca-cert ssl-cert ssl-key]}]
+(defn- make-https-client
+  [^String host {:keys [ssl-ca-cert ssl-cert ssl-key vcr-dir]}]
   {:pre  [(every? file? [ssl-ca-cert ssl-cert ssl-key])
           (.startsWith host "https://")]
    :post [(s/validate Client %)]}
   {:host host
    :opts {:ssl-ca-cert ssl-ca-cert
           :ssl-cert    ssl-cert
-          :ssl-key     ssl-key}})
+          :ssl-key     ssl-key
+          :vcr-dir     vcr-dir}})
 
-(defn make-http-client
-  [^String host]
+(defn- make-http-client
+  [^String host {:keys [vcr-dir]}]
   {:pre  [(.startsWith host "http://")]
    :post [(s/validate Client %)]}
   {:host host
-   :opts {}})
+   :opts {:vcr-dir vcr-dir}})
+
+(defn make-client
+  [^String host opts]
+  {:pre [host]}
+  (cond
+    (.startsWith host "http://") (make-http-client host opts)
+    (.startsWith host "https://") (make-https-client host opts)
+    :else (throw (IllegalArgumentException. "Host must start either http:// or https://"))))
+
+(defn- http-get
+  "Decide whether to use the VCR to service the get request"
+  [path opts vcr-dir]
+  (if vcr-dir
+    (vcr-get path opts vcr-dir)
+    (http/get path opts)))
 
 (s/defn ^:always-validate GET
   "Make a GET request using the given PuppetDB client, returning the results
@@ -38,7 +55,9 @@
   ([client :- Client ^String path]
     #_(println "GET:" path)                                 ;; uncomment this to watch queries
     (let [{:keys [host opts]} client
-          response (http/get (str host path) (assoc opts :as :text))
+          vcr-dir (:vcr-dir opts)
+          opts (dissoc opts :vcr-dir)
+          response (http-get (str host path) (assoc opts :as :text) vcr-dir)
           body (-> response
                    :body
                    (json/decode keyword))

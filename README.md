@@ -58,6 +58,22 @@ A couple of things to note here:
 * The certs must be supplied as instances of `java.io.File`, not simply paths/strings.
 * If you're running clj-puppetdb on a node that isn't managed by Puppet, grab the files from a node that is. It'll still work.
 
+
+#### Create a new connection with VCR support
+
+VCR functionality is also supported in clj-puppetdb. If enabled, the first time a particular query is executed, a real
+HTTP request is made to PuppetDB and the response is recorded. All future executions of the same query
+result in no HTTP request with the response instead replayed from the recording. This can be useful for
+testing or demo purposes as it allows clj-puppetdb to be run in a realistic manner without requiring a real PuppetDB,
+after the initial recording has been made.
+
+Enable the VCR by indicating the directory in which you'd like to store the recordings. Specifying a VCR directory
+implicitly enables the VCR.
+
+```clojure
+(def client (pdb/connect "https://puppetdb:8080" {:vcr-dir "recordings/tests"}}))
+```
+
 ### Simple requests
 
 Once you've got a connection (`conn` in the below examples), you can pass it to `clj-puppetdb.core/query` along with a path:
