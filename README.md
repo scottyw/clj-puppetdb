@@ -2,7 +2,7 @@
 
 A Clojure library for accessing the [PuppetDB](http://docs.puppetlabs.com/puppetdb/latest) [REST API](http://docs.puppetlabs.com/puppetdb/latest/api/index.html).
 
-[![Clojars Project](http://clojars.org/clj-puppetdb/latest-version.svg)](http://clojars.org/clj-puppetdb)
+[![Clojars Project](http://clojars.org/puppetlabs/clj-puppetdb/latest-version.svg)](http://clojars.org/puppetlabs/clj-puppetdb)
 
 Highlights:
 
