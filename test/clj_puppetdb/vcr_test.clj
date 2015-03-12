@@ -41,15 +41,19 @@
                                                                conn
                                                                "/v4/nodes"
                                                                [:= :certname "test"]
-                                                               {:limit    1
-                                                                :order-by [{:field :receive-time :order "desc"}]})))
+                                                               (array-map :limit 1 :order-by [(array-map :field :receive-time :order "desc")]))))
               ; Real response, but should not be recorded again
               (is (= [{:test "some-nodes"} {:total "12345"}] (query-with-metadata
                                                                conn
                                                                "/v4/nodes"
                                                                [:= :certname "test"]
-                                                               {:order-by [{:order "desc" :field :receive-time}]
-                                                                :limit    1}))))
+                                                               (array-map :order-by [(array-map :field :receive-time :order "desc")] :limit 1))))
+              ; Real response, but should not be recorded again
+              (is (= [{:test "some-nodes"} {:total "12345"}] (query-with-metadata
+                                                               conn
+                                                               "/v4/nodes"
+                                                               [:= :certname "test"]
+                                                               (array-map :order-by [(array-map :order "desc" :field :receive-time)] :limit 1)))))
             ; There should be 2 recordings
             (is (= 2 (count (fs/list-dir vcr-dir)))))
           (testing "and a recording already exists"
@@ -58,14 +62,12 @@
                                                              conn
                                                              "/v4/nodes"
                                                              [:= :certname "test"]
-                                                             {:limit    1
-                                                              :order-by [{:field :receive-time :order "desc"}]})))
+                                                             (array-map :limit 1 :order-by [(array-map :field :receive-time :order "desc")]))))
             (is (= [{:test "some-nodes"} {:total "12345"}] (query-with-metadata
                                                              conn
                                                              "/v4/nodes"
                                                              [:= :certname "test"]
-                                                             {:order-by [{:order "desc" :field :receive-time}]
-                                                              :limit    1}))))
+                                                             (array-map :order-by [(array-map :order "desc" :field :receive-time)] :limit 1)))))
           (testing "and a recording already exists and the real endpoint has changed"
             (with-redefs [http/get
                           (fn [& rest]
@@ -77,14 +79,12 @@
                                                                conn
                                                                "/v4/nodes"
                                                                [:= :certname "test"]
-                                                               {:limit    1
-                                                                :order-by [{:field :receive-time :order "desc"}]})))
+                                                               (array-map :limit 1 :order-by [(array-map :field :receive-time :order "desc")]))))
               (is (= [{:test "some-nodes"} {:total "12345"}] (query-with-metadata
                                                                conn
                                                                "/v4/nodes"
                                                                [:= :certname "test"]
-                                                               {:order-by [{:order "desc" :field :receive-time}]
-                                                                :limit    1}))))))
+                                                               (array-map :order-by [(array-map :order "desc" :field :receive-time)] :limit 1)))))))
         (testing "when VCR is not enabled but a recording exists"
           (let [conn (connect "http://localhost:8080")]
             (is (nil? (:vcr-dir conn)))
@@ -103,14 +103,12 @@
                                                                        conn
                                                                        "/v4/nodes"
                                                                        [:= :certname "test"]
-                                                                       {:limit    1
-                                                                        :order-by [{:field :receive-time :order "desc"}]})))
+                                                                       (array-map :limit 1 :order-by [(array-map :field :receive-time :order "desc")]))))
               (is (= [{:test "some-nodes-changed"} {:total "12345"}] (query-with-metadata
                                                                        conn
                                                                        "/v4/nodes"
                                                                        [:= :certname "test"]
-                                                                       {:order-by [{:order "desc" :field :receive-time}]
-                                                                        :limit    1}))))
+                                                                       (array-map :order-by [(array-map :order "desc" :field :receive-time)] :limit 1)))))
             ; There should still be just 2 recordings
             (is (= 2 (count (fs/list-dir vcr-dir)))))
           (fs/delete-dir vcr-dir))))))
