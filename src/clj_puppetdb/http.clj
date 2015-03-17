@@ -1,6 +1,7 @@
 (ns clj-puppetdb.http
   (:require [cemerick.url :refer [url-encode map->query]]
             [cheshire.core :as json]
+            [clj-puppetdb.http-util :as util]
             [clj-puppetdb.schema :refer [Client]]
             [clj-puppetdb.util :refer [file?]]
             [clj-puppetdb.vcr :refer [vcr-get]]
@@ -46,26 +47,29 @@
 
 (s/defn ^:always-validate GET
   "Make a GET request using the given PuppetDB client, returning the results
-  as a lazy sequence of maps with keywordized keys.
+  as a clojure data structure. If the structure contains any maps then keys
+  in those maps will be keywordized.
 
   The `path` argument must be a URL-encoded string.
 
   You may provide a set of querystring parameters as a map. These will be url-encoded
   automatically and added to the path."
-  ([client :- Client ^String path]
-    #_(println "GET:" path)                                 ;; uncomment this to watch queries
-    (let [{:keys [host opts]} client
-          vcr-dir (:vcr-dir opts)
-          opts (dissoc opts :vcr-dir)
-          response (http-get (str host path) (assoc opts :as :text) vcr-dir)
-          body (-> response
-                   :body
-                   (json/decode keyword))
-          headers (:headers response)]
-      [body headers]))
-  ([client path params]
-    (if (empty? params)
-      (GET client path)
-      (let [query-params (map->query params)
-            new-path (str path "?" query-params)]
-        (GET client new-path)))))
+  ([client :- Client ^String path params]
+    {:pre (map? params)}
+    (let [path (if (empty? params)
+                 path
+                 (str path "?" (map->query params)))]
+      #_(println "GET:" path)                                 ;; uncomment this to watch queries
+      (let [{:keys [host opts]} client
+            vcr-dir (:vcr-dir opts)
+            opts (dissoc opts :vcr-dir)
+            response (http-get (str host path) (assoc opts :as :stream) vcr-dir)]
+        (if-not (= 200 (:status response))
+          (throw (RuntimeException. (slurp (util/make-response-reader response)))))
+        (let [data (-> response
+                       util/make-response-reader
+                       (json/decode-stream keyword))
+              headers (:headers response)]
+          [data headers]))))
+  ([client path]
+    (GET client path {})))

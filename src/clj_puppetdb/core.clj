@@ -2,9 +2,7 @@
   (:require [cheshire.core :as json]
             [clj-puppetdb.http :refer [GET] :as http]
             [clj-puppetdb.paging :as paging]
-            [clj-puppetdb.query :as q]
-            [clj-puppetdb.schema :refer [Client]]
-            [schema.core :as s]))
+            [clj-puppetdb.query :as q]))
 
 (defn connect
   "Return a PuppetDB client map for the given host.
@@ -55,9 +53,9 @@
   contains additional metadata. Currently the only supported kind of metadata is:
   - :total (the total number of records available)"
   ([client path params]
-    (query-with-metadata client path nil params))
+   (query-with-metadata client path nil params))
   ([client path query-vec params]
-   (let [merged-params (merge params
+   (let [merged-params (merge {} params
                          (if query-vec
                            {:query (q/query->json query-vec)}))
          merged-params (encode-order-by merged-params client)
