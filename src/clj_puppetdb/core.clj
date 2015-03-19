@@ -23,12 +23,11 @@
   "order-by params contain nested maps and if the VCR running we want to enforce a specific ordering to give us URL stability"
   [params client keyword]
   (if (contains? params keyword)
-    (update-in params [keyword]
-      (if (get-in client [:opts :vcr-dir])
-        ; Stability of URL is important
-        (fn [order-by] json/encode (map (fn [map] into (sorted-map) map) order-by))
-        ; Stability of URL doesn't matter
-        json/encode))
+    (if (get-in client [:opts :vcr-dir])
+      ; Stability of URL is important
+      (update-in params [keyword] #(json/encode (map (fn [map] into (sorted-map) map) %)))
+      ; Stability of URL doesn't matter
+      (update-in params [keyword] json/encode))
     params))
 
 (defn- encode-order-by
