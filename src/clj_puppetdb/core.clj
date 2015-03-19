@@ -25,7 +25,7 @@
   (if (contains? params keyword)
     (if (get-in client [:opts :vcr-dir])
       ; Stability of URL is important
-      (update-in params [keyword] #(json/encode (map (fn [map] into (sorted-map) map) %)))
+      (update-in params [keyword] #(json/encode (map (fn [map] (into (sorted-map) map)) %)))
       ; Stability of URL doesn't matter
       (update-in params [keyword] json/encode))
     params))
