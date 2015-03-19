@@ -19,6 +19,23 @@
   ([^String host] (connect host {}))
   ([^String host opts] (http/make-client host opts)))
 
+(defn- encode-order-by-using-keyword
+  "order-by params contain nested maps and if the VCR running we want to enforce a specific ordering to give us URL stability"
+  [params client keyword]
+  (if (contains? params keyword)
+    (if (get-in client [:opts :vcr-dir])
+      ; Stability of URL is important
+      (update-in params [keyword] #(json/encode (map (fn [map] (into (sorted-map) map)) %)))
+      ; Stability of URL doesn't matter
+      (update-in params [keyword] json/encode))
+    params))
+
+(defn- encode-order-by
+  [params client]
+  (-> params
+    (encode-order-by-using-keyword client :order-by)        ; v3 and earlier
+    (encode-order-by-using-keyword client :order_by)))      ; v4
+
 (defn query-with-metadata
   "Use the given PuppetDB client to query the server.
 
@@ -40,15 +57,14 @@
   ([client path params]
     (query-with-metadata client path nil params))
   ([client path query-vec params]
-    (let [merged-params (merge {}
-                               (if query-vec
-                                 {:query (q/query->json query-vec)})
-                               (if params
-                                 (update-in params [:order-by] json/encode)))
-          [body headers] (GET client path merged-params)
-          total (get headers "x-records")
-          metadata (if total {:total total})]
-      [body metadata])))
+   (let [merged-params (merge params
+                         (if query-vec
+                           {:query (q/query->json query-vec)}))
+         merged-params (encode-order-by merged-params client)
+         [body headers] (GET client path merged-params)
+         total         (get headers "x-records")
+         metadata      (if total {:total total})]
+     [body metadata])))
 
 (defn query
   "Use the given PuppetDB client to query the server.
