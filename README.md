@@ -112,7 +112,7 @@ For queries that may return an extremely large set of results, clj-puppetdb supp
 
 The `clj-puppetdb.core/lazy-query` function behaves much like `clj-puppetdb.core/query` in that it will return all
 results that match the query. However this lazy version will retrieve results only one page at a time, transparently
-retreiving each subsequently required page as the lazy sequence is consumed. You must supply a map containing the
+retrieving each subsequently required page as the lazy sequence is consumed. You must supply a map containing the
 `:limit` and `:order-by`/`:order_by` keys that dictate where the lazy sequence starts and what the underlying page size should be.
 
 Here's a simple example of a lazy query:
@@ -151,13 +151,14 @@ You can also supply a query vector:
 The `clj-puppetdb.core/query-with-metadata` function also behaves like `clj-puppetdb.core/query` but takes an additional
 argument that allows tou to specify paging parameters. This function always returns a vector of size two where:
  - The first element contains the results
- - The second contains a map of metadata - currently just the total number of resources available
+ - The second contains a map of metadata - currently just the total number of records available
 
 
-The map of parameters at the end of the call to `query-with-metadata` takes the same values as `lazy-query` above:
+The map of parameters at the end of the call to `query-with-metadata` takes similar values to `lazy-query` above:
  - The `:limit` key is **required**, and determines how many results to return at a time.
  - The `:offset` key is optional (default is 0) and determines how many results to skip at the beginning of the query.
  - The `:order-by` (PuppetDB v3 API and earlier) or `:order_by` (PuppetDB v4 API and later) key is **required**, and sorts the results on the server-side. It consists of a vector of maps, where each map specifies a `:field` to sort by (e.g., `:certname` or `:value`) and either `"asc"` for ascending order or `"desc"` for descending order.
+ - The `:include-total`/`:include_total` key is optional and if true will return the total number of available records in the second element of the result vector.
 
 Here's a simple example:
 
@@ -168,7 +169,7 @@ Here's a simple example:
 (def client (pdb/connect "http://puppetdb:8080"))
 
 (let [[reports metadata] (pdb/query-with-metadata client "/v4/reports"
-    {:limit 3 :offset 0 :order_by [{:field :name :order "asc"}]})]
+    {:limit 3 :offset 0 :include_total true :order_by [{:field :receive_time :order "asc"}]})]
     (println reports metadata))
 ```
 
@@ -182,7 +183,7 @@ You can also supply a query vector:
 
 ## Possible Future Features
 
-Here are some things that I'm working on that will hopefully make this library a bit more robust:
+Here are some things that will hopefully make this library a bit more robust:
 
 * Handle HTTP(S) connections a bit better. Cache the certificates for SSL, do timeouts properly, etc.
 * Validate queries before sending them off to the server.
