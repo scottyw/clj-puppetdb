@@ -63,7 +63,7 @@
          merged-params (encode-order-by merged-params client)
          [body headers] (GET client path merged-params)
          total         (get headers "x-records")
-         metadata      (if total {:total total})]
+         metadata      (try (if total {:total (BigInteger. total)}) (catch Throwable _))]
      [body metadata])))
 
 (defn query
