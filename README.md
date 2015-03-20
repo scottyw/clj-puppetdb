@@ -169,7 +169,8 @@ Here's a simple example:
 (def client (pdb/connect "http://puppetdb:8080"))
 
 (let [[reports metadata] (pdb/query-with-metadata client "/v4/reports"
-    {:limit 3 :offset 0 :include_total true :order_by [{:field :receive_time :order "asc"}]})]
+    {:limit 3 :offset 0 :include_total true 
+     :order_by [{:field :receive_time :order "asc"}]})]
     (println reports metadata))
 ```
 
