@@ -5,9 +5,9 @@
   "Schema for PuppetDB client maps. Note: doesn't check that
   the certs (if provided) actually exist."
   {:host Str
-   :opts (s/either {:ssl-ca-cert java.io.File
-                    :ssl-cert    java.io.File
-                    :ssl-key     java.io.File
+   :opts (s/either {:ssl-ca-cert java.net.URL
+                    :ssl-cert    java.net.URL
+                    :ssl-key     java.net.URL
                     :vcr-dir     (s/maybe Str)}
                    {:vcr-dir (s/maybe Str)})})
 

@@ -6,7 +6,9 @@
             [clj-puppetdb.util :refer [file?]]
             [clj-puppetdb.vcr :refer [vcr-get]]
             [puppetlabs.http.client.sync :as http]
-            [schema.core :as s]))
+            [schema.core :as s])
+  (:import [java.io IOException]
+           [com.fasterxml.jackson.core JsonParseException]))
 
 ;; TODO:
 ;;   - Validate schema for GET params. The GetParams schema
@@ -45,6 +47,41 @@
     (vcr-get path opts vcr-dir)
     (http/get path opts)))
 
+(defmacro catching-exceptions
+  "Execute the `call` in a try-catch block, catching the named `exceptions` (or any subclases
+  of `java.lang.Throwable`) and rethrowing them as :exception in the `exception-structure`."
+  [call exception-structure & exceptions]
+  (let [exceptions (if (empty? exceptions) [Throwable] exceptions)]
+    `(try
+       ~call
+       ~@(map (fn [exception]
+                `(catch ~exception exception#
+                   (throw (ex-info nil (assoc ~exception-structure :exception exception#)))))
+              exceptions))))
+
+(defmacro catching-parse-exceptions
+  "A convenience macro for wrapping JSON parsing code. It simply delegates to the
+  `catching-exceptions` macro supplying arguments to it suitable for the JSON parsing."
+  [call]
+  `(catching-exceptions ~call {:kind :puppetdb-parse-error} JsonParseException IOException))
+
+(defn- lazy-seq-catching-parse-exceptions
+  "Given a lazy sequnce wrap it into another lazy sequnce which ensures that proper error
+  handling is in place whenever an elment is consumend from the sequnce."
+  [result]
+  (lazy-seq
+    (if-let [sequence (catching-parse-exceptions (seq result))]
+      (cons (first sequence) (lazy-seq-catching-parse-exceptions (rest sequence)))
+      result)))
+
+(defn- decode-stream-catching-parse-exceptions
+  "JSON decode data from given reader making sure proper error handling is in place."
+  [reader]
+  (let [result (catching-parse-exceptions (json/decode-stream reader keyword))]
+    (if (seq? result)
+      (lazy-seq-catching-parse-exceptions result)
+      result)))
+
 (s/defn ^:always-validate GET
   "Make a GET request using the given PuppetDB client, returning the results
   as a clojure data structure. If the structure contains any maps then keys
@@ -56,19 +93,25 @@
   automatically and added to the path."
   ([client :- Client ^String path params]
     {:pre (map? params)}
-    (let [path (if (empty? params)
-                 path
-                 (str path "?" (map->query params)))]
-      #_(println "GET:" path)                                 ;; uncomment this to watch queries
+    (let [query (if (empty? params)
+                  path
+                  (str path "?" (map->query params)))]
+      #_(println "GET:" query)                                 ;; uncomment this to watch queries
       (let [{:keys [host opts]} client
             vcr-dir (:vcr-dir opts)
             opts (dissoc opts :vcr-dir)
-            response (http-get (str host path) (assoc opts :as :stream) vcr-dir)]
+            response (-> (str host query)
+                         (http-get (assoc opts :as :stream) vcr-dir)
+                         (catching-exceptions {:kind :puppetdb-connection-error}))]
         (if-not (= 200 (:status response))
-          (throw (RuntimeException. (slurp (util/make-response-reader response)))))
+          (throw (ex-info nil {:kind   :puppetdb-query-error
+                               :url    (str host path)
+                               :msg    (slurp (util/make-response-reader response))
+                               :status (:status response)
+                               :params params})))
         (let [data (-> response
                        util/make-response-reader
-                       (json/decode-stream keyword))
+                       decode-stream-catching-parse-exceptions)
               headers (:headers response)]
           [data headers]))))
   ([client path]
