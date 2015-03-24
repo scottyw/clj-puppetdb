@@ -48,7 +48,7 @@
     (http/get path opts)))
 
 (defmacro catching-exceptions
-  "Execute the `call` in a try-catch block, catching the named `exceptions` (or any subclases
+  "Execute the `call` in a try-catch block, catching the named `exceptions` (or any subclasses
   of `java.lang.Throwable`) and rethrowing them as :exception in the `exception-structure`."
   [call exception-structure & exceptions]
   (let [exceptions (if (empty? exceptions) [Throwable] exceptions)]
@@ -66,8 +66,8 @@
   `(catching-exceptions ~call {:kind :puppetdb-parse-error} JsonParseException IOException))
 
 (defn- lazy-seq-catching-parse-exceptions
-  "Given a lazy sequnce wrap it into another lazy sequnce which ensures that proper error
-  handling is in place whenever an elment is consumend from the sequnce."
+  "Given a lazy sequence wrap it into another lazy sequence which ensures that proper error
+  handling is in place whenever an element is consumed from the sequence."
   [result]
   (lazy-seq
     (if-let [sequence (catching-parse-exceptions (seq result))]

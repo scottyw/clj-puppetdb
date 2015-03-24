@@ -122,4 +122,3 @@
             ; There should still be just 2 recordings
             (is (= 2 (count (fs/list-dir vcr-dir)))))
           (fs/delete-dir vcr-dir))))))
-
