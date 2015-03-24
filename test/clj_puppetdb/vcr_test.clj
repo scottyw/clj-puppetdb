@@ -2,21 +2,23 @@
   (:require [clojure.test :refer :all]
             [clj-puppetdb.core :refer [connect query-with-metadata]]
             [clj-puppetdb.http :refer :all]
-            [clj-puppetdb.query :as q]
+            [clj-puppetdb.vcr :as vcr]
             [puppetlabs.http.client.sync :as http]
             [me.raynes.fs :as fs]))
 
-(def mock-http-response-template {:opts                  {:persistent      false
-                                                          :as              :text
-                                                          :decompress-body true
-                                                          :body            nil
-                                                          :headers         {}
-                                                          :method          :get
-                                                          :url             "http://pe:8080/v4/nodes"}
-                                  :orig-content-encoding "gzip"
-                                  :status                200
-                                  :headers               {"x-records" "12345"}
-                                  :content-type          {:mime-type "application/json"}})
+(def mock-http-response-template
+  (-> {:opts                  {:persistent      false
+                               :as              :stream
+                               :decompress-body true
+                               :body            nil
+                               :headers         {}
+                               :method          :get
+                               :url             "http://pe:8080/v4/nodes"}
+       :orig-content-encoding "gzip"
+       :status                200
+       :headers               {"x-records" "12345"
+                               "content-type" "application/json; charset=iso-8859-1"}}
+      vcr/rebuild-content-type))
 
 (deftest vcr-test
   (testing "VCR recording and replay"
@@ -27,15 +29,19 @@
           (is (= vcr-dir (get-in conn [:opts :vcr-dir])))
           (testing "and no recording exists"
             (with-redefs [http/get
-                          (fn [& rest]
+                          (fn [& _]
                             ; Return mock data
-                            (assoc mock-http-response-template :body " {\"test\": \"all-nodes\"} "))]
+                            (-> mock-http-response-template
+                                (assoc :body " {\"test\": \"all-nodes\"} ")
+                                vcr/body->stream))]
               ; Real response, should be recorded
               (is (= [{:test "all-nodes"} {:total 12345}] (query-with-metadata conn "/v4/nodes" nil))))
             (with-redefs [http/get
-                          (fn [& rest]
+                          (fn [& _]
                             ; Return mock data
-                            (assoc mock-http-response-template :body " {\"test\": \"some-nodes\"} "))]
+                            (-> mock-http-response-template
+                                (assoc :body " {\"test\": \"some-nodes\"} ")
+                                vcr/body->stream))]
               ; Real response, should be recorded
               (is (= [{:test "some-nodes"} {:total 12345}] (query-with-metadata
                                                              conn
@@ -70,9 +76,9 @@
                                                            (array-map :order-by [(array-map :order "desc" :field :receive-time)] :limit 1)))))
           (testing "and a recording already exists and the real endpoint has changed"
             (with-redefs [http/get
-                          (fn [& rest]
-                            ; Return mock data but modified
-                            (assoc mock-http-response-template :body " {\"test\": \"different-body-this-time\"} "))]
+                          (fn [& _]
+                            ; This should not be called as all the responses should be read from the VCR files.
+                            (throw (RuntimeException. "this should actually never be called")))]
               ; VCR enabled so we expect to see the original bodies
               (is (= [{:test "all-nodes"} {:total 12345}] (query-with-metadata conn "/v4/nodes" nil)))
               (is (= [{:test "some-nodes"} {:total 12345}] (query-with-metadata
@@ -89,15 +95,19 @@
           (let [conn (connect "http://localhost:8080")]
             (is (nil? (:vcr-dir conn)))
             (with-redefs [http/get
-                          (fn [& rest]
+                          (fn [& _]
                             ; Return mock data
-                            (assoc mock-http-response-template :body " {\"test\": \"all-nodes-changed\"} "))]
+                            (-> mock-http-response-template
+                                (assoc :body " {\"test\": \"all-nodes-changed\"} ")
+                                vcr/body->stream))]
               ; Real response, should not be recorded
               (is (= [{:test "all-nodes-changed"} {:total 12345}] (query-with-metadata conn "/v4/nodes" nil))))
             (with-redefs [http/get
-                          (fn [& rest]
+                          (fn [& _]
                             ; Return mock data
-                            (assoc mock-http-response-template :body " {\"test\": \"some-nodes-changed\"} "))]
+                            (-> mock-http-response-template
+                                (assoc :body " {\"test\": \"some-nodes-changed\"} ")
+                                vcr/body->stream))]
               ; Real response, should not be recorded
               (is (= [{:test "some-nodes-changed"} {:total 12345}] (query-with-metadata
                                                                      conn
@@ -112,3 +122,4 @@
             ; There should still be just 2 recordings
             (is (= 2 (count (fs/list-dir vcr-dir)))))
           (fs/delete-dir vcr-dir))))))
+

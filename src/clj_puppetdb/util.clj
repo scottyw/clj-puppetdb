@@ -1,5 +1,7 @@
-(ns clj-puppetdb.util)
+(ns clj-puppetdb.util
+  (:import [java.io File]
+           [java.net URL]))
 
 (defn file?
-  [^java.io.File f]
-  (.isFile f))
+  [^URL f]
+  (-> f .toURI File. .isFile))
