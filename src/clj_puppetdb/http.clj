@@ -5,24 +5,43 @@
             [clj-puppetdb.schema :refer [Client]]
             [clj-puppetdb.util :refer [file?]]
             [clj-puppetdb.vcr :refer [vcr-get]]
+            [puppetlabs.ssl-utils.core :as ssl]
             [puppetlabs.http.client.sync :as http]
             [schema.core :as s])
-  (:import [java.io IOException]
+  (:import [java.io IOException File]
+           [javax.net.ssl SSLContext]
            [com.fasterxml.jackson.core JsonParseException]))
 
 ;; TODO:
 ;;   - Validate schema for GET params. The GetParams schema
 ;;     exists, but needs work before it can be used.
 
+
+(def cert-keys
+  "The keys to the configuration map specifying the certificates/private key
+  needed for creating the SSL context.
+  Warning: the order of the keys must match that expected by the
+  `puppetlabs.ssl-utils.core/pems->ssl-context` function."
+  [:ssl-cert :ssl-key :ssl-ca-cert])
+
 (defn- make-https-client
-  [^String host {:keys [ssl-ca-cert ssl-cert ssl-key vcr-dir]}]
-  {:pre  [(every? file? [ssl-ca-cert ssl-cert ssl-key])
-          (.startsWith host "https://")]
+  [^String host {:keys [ssl-context vcr-dir] :as opts}]
+  {:pre  [(.startsWith host "https://")
+          (or (and ssl-context (or (instance? SSLContext ssl-context)
+                                   (throw (IllegalArgumentException.
+                                            (str "The ssl-context is expected to be an instance of "
+                                                 (-> SSLContext .getName)
+                                                 " but is of class "
+                                                 (-> ssl-context .getClass .getName))))))
+              (every? #(or (file? (get opts %))
+                           (throw (IllegalArgumentException.
+                                    (str "The following file does not exist: " (name %) \= (get opts %)))))
+                      cert-keys))]
    :post [(s/validate Client %)]}
   {:host host
-   :opts {:ssl-ca-cert ssl-ca-cert
-          :ssl-cert    ssl-cert
-          :ssl-key     ssl-key
+   :opts {:ssl-context (if ssl-context
+                         ssl-context
+                         (apply ssl/pems->ssl-context (map #(->> % (get opts) File.) cert-keys)))
           :vcr-dir     vcr-dir}})
 
 (defn- make-http-client
