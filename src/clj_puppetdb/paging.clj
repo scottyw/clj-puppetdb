@@ -42,18 +42,17 @@
   "Returns a map containing initial results with enough contextual data
   to request the next set of results."
   ([client path params]
-     (let [json-params (update-in params [:order-by] json/encode)
-           query-fn (fn [offset]
-                      (GET client path (assoc json-params :offset offset)))
-           limit (:limit params)
-           offset (get params :offset 0)]
-       {:body nil
-        :limit limit
-        :offset offset
-        :query query-fn}))
+   (let [limit (get params :limit)
+         offset (get params :offset 0)
+         query-fn (fn [offset]
+                    (GET client path (assoc params :offset offset)))]
+     {:body nil
+      :limit limit
+      :offset offset
+      :query query-fn}))
   ([client path query-vec params]
-     (let [params-with-query (assoc params :query (q/query->json query-vec))]
-       (lazify-query client path params-with-query))))
+   (let [params-with-query (assoc params :query (q/canonicalize-query query-vec))]
+     (lazify-query client path params-with-query))))
 
 (s/defn ^:always-validate lazy-query
   "Return a lazy sequence of results from the given query. Unlike the regular

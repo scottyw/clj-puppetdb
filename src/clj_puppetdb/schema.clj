@@ -1,13 +1,11 @@
 (ns clj-puppetdb.schema
-  (:require [schema.core :refer [Any Str Int Keyword] :as s]))
+  (:require [schema.core :refer [Any Str Int Keyword] :as s])
+  (:import [clojure.lang IFn]))
 
 (def Client
-  "Schema for PuppetDB client maps. Note: doesn't check that
-  the certs (if provided) actually exist."
-  {:host Str
-   :opts (s/either {:ssl-context javax.net.ssl.SSLContext
-                    :vcr-dir     (s/maybe Str)}
-                   {:vcr-dir (s/maybe Str)})})
+  "Schema for PuppetDB client map. Note: doesn't check the
+  arity of the function."
+  IFn)
 
 (def PagingParams
   "Schema for params passed to lazy-query."
