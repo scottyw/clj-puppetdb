@@ -21,21 +21,30 @@ Both HTTP and HTTPS connections are supported.
 
 #### Create a new connection without SSL
 
-The `clj-puppetdb.core/connect` function minimally requires a host URL, including the protocol and port:
+The `clj-puppetdb.core/connect` function minimally requires a host URL, including the protocol and port. An optional parameter map may be provided:
 
 ```clojure
 (ns clj-puppetdb.ssl-example
   (:require [clj-puppetdb.core :as pdb]
             [clojure.java.io :as io]))
 
-(def client (pdb/connect "http://puppetdb:8080"))
+(def client (pdb/connect "http://puppetdb:8080" {:connect-timeout-milliseconds 5000}))
 ```
+The following options are supported on both secure and unsecure connections alike:
 
-If you're connecting over plain HTTP, no other options are supported.
+* `:connect-timeout-milliseconds`: maximum number of milliseconds that the
+  client will wait for a connection to be established.  A value of 0 is
+  interpreted as infinite.  A negative value or the absence of this option
+  is interpreted as undefined (system default).
+* `:socket-timeout-milliseconds`: maximum number of milliseconds that the
+  client will allow for no data to be available on the socket before closing the
+  underlying connection, 'SO_TIMEOUT' in socket terms.  A timeout of zero is
+  interpreted as an infinite timeout.  A negative value or the absence of
+  this setting is interpreted as undefined (system default).
 
 #### Create a new connection with SSL (using Puppet's certificates)
 
-If you want to connect to PuppetDB more securely, clj-puppetdb supports using SSL certificates. If you're running clj-puppetdb from a node that's managed by Puppet, you'll already have the certificates you need. Just supply them in a map after the host URL:
+If you want to connect to PuppetDB more securely, clj-puppetdb supports using SSL certificates. If you're running clj-puppetdb from a node that's managed by Puppet, you'll already have the certificates you need. Just supply them in a map (merged with the connection parameters) after the host URL:
 
 ```clojure
 (ns clj-puppetdb.ssl-example
