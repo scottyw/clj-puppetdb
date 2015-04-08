@@ -58,6 +58,14 @@
       ([]
        info))))
 
+(defn- file?
+  [^String file-path]
+  (if (nil? file-path)
+    nil
+    (-> file-path
+        File.
+        fs/file?)))
+
 (defn- make-https-client
   [^String host {:keys [ssl-context] :as opts}]
   {:pre [(.startsWith host "https://")
@@ -68,7 +76,7 @@
                                                 (-> SSLContext .getName)
                                                 " but is of class "
                                                 (-> ssl-context .getClass .getName))))))
-             (every? #(or (->> % (get opts) File. fs/file?)
+             (every? #(or (->> % (get opts) file?)
                           (throw (IllegalArgumentException.
                                    (str "The following file does not exist: " (name %) \= (get opts %)))))
                      cert-keys))]}
