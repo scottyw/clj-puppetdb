@@ -25,13 +25,14 @@
   `puppetlabs.ssl-utils.core/pems->ssl-context` function."
   [:ssl-cert :ssl-key :ssl-ca-cert])
 
+(def connection-relevant-opts
+  [:ssl-context :connect-timeout-milliseconds :socket-timeout-milliseconds])
+
 (defn- make-client-common
   [^String host opts]
   (let [opts (assoc opts :as :stream)
-        info {:host host}
-        info (if-let [ssl-context (:ssl-context opts)]
-               (assoc info :ssl-context ssl-context)
-               info)]
+        info (select-keys opts connection-relevant-opts)
+        info (assoc info :host host)]
     (fn
       ; This arity-overloaded variant of the function is the one called by the `GET` function.
       ; The `this` parameter refers under normal circumstances to this very function and it is
