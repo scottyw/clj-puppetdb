@@ -1,5 +1,6 @@
 (ns clj-puppetdb.vcr
-  (:require [clj-puppetdb.http-util :as util]
+  (:require [cheshire.core :as json]
+            [clj-puppetdb.http-util :as util]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [me.raynes.fs :as fs]
@@ -34,8 +35,8 @@
   "Turn response body into a `java.io.InputStream` subclass."
   (let [charset (util/response-charset response)]
     (->> (-> (get response :body)
-           (.getBytes charset)
-           ByteArrayInputStream.)
+             (.getBytes charset)
+             ByteArrayInputStream.)
          (assoc response :body))))
 
 (defn- vcr-file
@@ -68,9 +69,15 @@
   (reduce
     (fn [params key]
       (if (contains? params key)
-        (->> (get params key)
-             (map #(into (sorted-map) %))
-             (assoc params key))
+        (let [value (get params key)]
+          (->>
+            ; if the value is a string then we assume it is JSON encoded in which case we
+            ; need to decode it first
+            (if (string? value)
+              (json/decode value)
+              value)
+            (map #(into (sorted-map) %))
+            (assoc params key)))
         params))
     params
     nested-params))
