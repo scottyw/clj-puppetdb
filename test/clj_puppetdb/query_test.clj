@@ -18,4 +18,3 @@
   (testing "Direct and encoded parameters"
     (is (= (params->json {:limit 20 :offset 200 :order_by [{:field :receive_time :order "desc"}]})
            {:limit 20, :offset 200, :order_by "[{\"field\":\"receive_time\",\"order\":\"desc\"}]"}))))
-

@@ -19,9 +19,9 @@
   booleans and numbers pass through unchanged."
   [x]
   (cond
-   (operator? x) (ops x)
-   (instance? java.util.regex.Pattern x) (str x)
-   :else x))
+    (operator? x) (ops x)
+    (instance? java.util.regex.Pattern x) (str x)
+    :else x))
 
 (defn canonicalize-query
   "Takes a vector approximating an API query (may include some conveniences
@@ -42,9 +42,13 @@
   (reduce
     (fn [params key]
       (if (contains? params key)
-        (->> (get params key)
-             json/encode
-             (assoc params key))
+        (let [value (get params key)]
+          ; if the value is a string then we assume it is already JSON encoded
+          (if (string? value)
+            params
+            (->> value
+                 json/encode
+                 (assoc params key))))
         params))
     params
     json-params))
