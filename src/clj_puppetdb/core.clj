@@ -16,6 +16,17 @@
   ([^String host] (connect host {}))
   ([^String host opts] (http/make-client host opts)))
 
+(defn- query-pdb
+  [client path query-vec params]
+  (let [params (if params params {})
+        merged-params (if query-vec
+                        (assoc params :query (q/canonicalize-query query-vec))
+                        params)
+        [body headers] (GET client path merged-params)
+        total (get headers "x-records")
+        metadata (try (if total {:total (BigInteger. total)}) (catch Throwable _))]
+    [body metadata]))
+
 (defn query-with-metadata
   "Use the given PuppetDB client to query the server.
 
@@ -37,14 +48,14 @@
   ([client path params]
    (query-with-metadata client path nil params))
   ([client path query-vec params]
-   (let [params (if params params {})
-         merged-params (if query-vec
-                         (assoc params :query (q/canonicalize-query query-vec))
-                         params)
-         [body headers] (GET client path merged-params)
-         total         (get headers "x-records")
-         metadata      (try (if total {:total (BigInteger. total)}) (catch Throwable _))]
-     [body metadata])))
+   (query-pdb client (str "/pdb/query" path) query-vec params)))
+
+(defn query-ext-with-metadata
+  "Same semantics as query-with-metadata but used to access PE extensions to PuppetDBq"
+  ([client path params]
+   (query-ext-with-metadata client path nil params))
+  ([client path query-vec params]
+   (query-pdb client (str "/pdb-ext" path) query-vec params)))
 
 (defn query
   "Use the given PuppetDB client to query the server.
