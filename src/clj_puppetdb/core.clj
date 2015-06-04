@@ -55,7 +55,7 @@
   ([client path params]
    (query-ext-with-metadata client path nil params))
   ([client path query-vec params]
-   (query-pdb client (str "/pdb-ext" path) query-vec params)))
+   (query-pdb client (str "/pdb/ext" path) query-vec params)))
 
 (defn query
   "Use the given PuppetDB client to query the server.
