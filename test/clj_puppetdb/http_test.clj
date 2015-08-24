@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [clojure.java.io :as io]
             [clj-puppetdb.http :refer [GET make-client]]
+            [clj-puppetdb.http-core :refer :all]
             [puppetlabs.http.client.sync :as http]
             [cheshire.core :as json])
   (:import [clojure.lang ExceptionInfo]))
@@ -9,16 +10,19 @@
 (defn- test-query-params
   [client params assert-fn]
   (let [wrapped-client
-        (fn
-          ([this path params]
-           (client this path params))
+        (reify
+          PdbClient
+          (pdb-get [this path params]
+            (pdb-get this this path params))
+          (pdb-get [_ that path params]
+              (pdb-get client that path params))
 
-          ([query]
-           (assert-fn query))
+          (pdb-do-get [_ query]
+            (assert-fn query))
 
-          ([]
-           (client)))]
-    (wrapped-client wrapped-client "" params)))
+          (client-info [_]
+            (client-info client)))]
+    (pdb-get wrapped-client "" params)))
 
 (deftest parameter-encoding-test
   (let [client (make-client "http://localhost:8080" {})]

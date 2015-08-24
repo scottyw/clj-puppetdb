@@ -24,7 +24,7 @@
                         params)
         [body headers] (GET client path merged-params)
         total (get headers "x-records")
-        metadata (try (if total {:total (BigInteger. total)}) (catch Throwable _))]
+        metadata (try (if total {:total (BigInteger. ^String total)}) (catch Throwable _))]
     [body metadata]))
 
 (defn query-with-metadata

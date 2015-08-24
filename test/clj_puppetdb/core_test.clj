@@ -1,16 +1,17 @@
 (ns clj-puppetdb.core-test
   (:require [clojure.test :refer :all]
             [clj-puppetdb.core :refer :all]
+            [clj-puppetdb.http-core :refer :all]
             [clj-puppetdb.http :refer [GET]]
             [puppetlabs.http.client.sync :as http]))
 
 (deftest connect-test
   (testing "Should create a connection with http://localhost:8080 with no additional arguments"
     (let [conn (connect "http://localhost:8080")]
-      (is (= (conn) {:host "http://localhost:8080"}))))
+      (is (= (client-info conn) {:host "http://localhost:8080"}))))
   (testing "Should create a connection with http://localhost:8080 and VCR enabled"
     (let [conn (connect "http://localhost:8080" {:vcr-dir "/temp"})]
-      (is (= (conn) {:host "http://localhost:8080" :vcr-dir "/temp"}))))
+      (is (= (client-info conn) {:host "http://localhost:8080" :vcr-dir "/temp"}))))
   (testing "Should accept https://puppetdb:8081 with a map of test certs"
     (let [opts {:ssl-ca-cert "./dev-resources/certs/ca-cert.pem"
                 :ssl-cert    "./dev-resources/certs/cert.pem"
@@ -28,8 +29,8 @@
       ;; I'm testing for truthiness of conn here. Schema validation should handle the rest except the VCR piece,
       ;; and testing equality with java.io.File objects doesn't seem to work.
       (is conn)
-      (is (= (:vcr-dir opts) (:vcr-dir (conn))))
-      (is (:ssl-context (conn)))))
+      (is (= (:vcr-dir opts) (:vcr-dir (client-info conn))))
+      (is (:ssl-context (client-info conn)))))
   (testing "SSL connection should require certificates"
     (is (thrown? IllegalArgumentException (connect "https://puppetdb:8081" {})))
     (is (thrown? IllegalArgumentException (connect "https://puppetdb:8081"
@@ -43,8 +44,8 @@
           url-params "?query=%5B%22%3D%22%2C%5B%22fact%22%2C%22operatingsystem%22%5D%2C%22Linux%22%5D"
           conn (connect host)]
       (with-redefs [http/get (fn[query _] (is (= query (str host path url-params))) [])]
-        (conn conn path params)
-        (conn (str host path url-params))))))
+        (pdb-get conn path params)
+        (pdb-do-get conn (str host path url-params))))))
 
 (deftest query-test
   (let [data ["node-01" "node-02" "node-03" "node-04"]
