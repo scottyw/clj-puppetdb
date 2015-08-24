@@ -1,6 +1,7 @@
 (ns clj-puppetdb.query
   (:require [clojure.walk :refer [postwalk]]
-            [cheshire.core :as json]))
+            [cheshire.core :as json])
+  (:import [java.util.regex Pattern]))
 
 (def ops
   {:match "~"
@@ -20,7 +21,7 @@
   [x]
   (cond
     (operator? x) (ops x)
-    (instance? java.util.regex.Pattern x) (str x)
+    (instance? Pattern x) (str x)
     :else x))
 
 (defn canonicalize-query

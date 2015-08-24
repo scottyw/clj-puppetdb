@@ -3,5 +3,3 @@
 
 (defn reset []
   (refresh))
-
-(reset)

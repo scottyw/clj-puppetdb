@@ -1,11 +1,11 @@
 (ns clj-puppetdb.vcr
   (:require [cheshire.core :as json]
-            [clj-puppetdb.http-util :as util]
+            [clj-puppetdb.http-core :refer :all]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [me.raynes.fs :as fs]
             [puppetlabs.kitchensink.core :refer [utf8-string->sha1]])
-  (:import [java.io File ByteArrayInputStream InputStreamReader BufferedReader PushbackReader]
+  (:import [java.io File ByteArrayInputStream InputStreamReader BufferedReader PushbackReader InputStream]
            [org.apache.http.entity ContentType]))
 
 (defn rebuild-content-type
@@ -23,8 +23,8 @@
 (defn body->string
   [response]
   "Turn response body into a string."
-  (let [charset (util/response-charset response)]
-    (->> (-> (get response :body)
+  (let [charset (response-charset response)]
+    (->> (-> ^InputStream (get response :body)
              (InputStreamReader. charset)
              BufferedReader.
              slurp)
@@ -33,8 +33,8 @@
 (defn body->stream
   [response]
   "Turn response body into a `java.io.InputStream` subclass."
-  (let [charset (util/response-charset response)]
-    (->> (-> (get response :body)
+  (let [charset (response-charset response)]
+    (->> (-> ^String (get response :body)
              (.getBytes charset)
              ByteArrayInputStream.)
          (assoc response :body))))
@@ -87,42 +87,36 @@
   a response first. If none is found the original client is called to obtain the response,
   which is then recorded for the future."
   [vcr-dir client]
-  (fn
-    ; This arity-overloaded variant of the function sorts the known nested structures in the
-    ; query parameters to give us URL stability and then delegates to the original client.
-    ; Note that under normal circumstances the `this` parameter points to this very function
-    ; but when it is passed to the original client, it effectively overrides the other
-    ; arity-overloaded variants of the function for the client - i.e. it makes the client
-    ; call our versions of the arity-overloaded variants of the function.
-    ([this path params]
-     (->> params
-          normalize-params
-          (client this path)))
+  (reify
+    PdbClient
+    (pdb-get [this path params]
+      (pdb-get this this path params))
+    (pdb-get [_ that path params]
+      ; Sort the known nested structures in the query parameters to give us URL stability and
+      ; then delegate to the original client.
+      (->> params
+           normalize-params
+           (pdb-get client that path)))
 
-    ; This arity-overloaded variant of the function is called from the original client (thanks
-    ; to the override effect described above) to actually execute the PDB query.
-    ; It first tries to find a response for the query recorded in a file and only delegates to
-    ; the original client if no recorded response for the query is found.
-    ([query]
-     (let [file (vcr-file vcr-dir query)]
-       (when-not (fs/exists? file)
-         (let [response (-> query
-                            client
-                            vcr-serialization-transform)]
-           (fs/mkdirs (fs/parent file))
-           (-> file
-               io/writer
-               (spit response))))
-       ; Always read from the file - even if we just wrote it - to fast-fail on serialization errors
-       ; (at the expense of performance)
-       (-> (with-open [reader (-> file
-                                  io/reader
-                                  PushbackReader.)]
-             (edn/read reader))
-           vcr-unserialization-transform)))
+    (pdb-do-get [_ query]
+      (let [file (vcr-file vcr-dir query)]
+        (when-not (fs/exists? file)
+          (let [response (->> query
+                              (pdb-do-get client)
+                              vcr-serialization-transform)]
+            (fs/mkdirs (fs/parent file))
+            (-> file
+                io/writer
+                (spit response))))
+        ; Always read from the file - even if we just wrote it - to fast-fail on serialization errors
+        ; (at the expense of performance)
+        (-> (with-open [reader (-> file
+                                   io/reader
+                                   PushbackReader.)]
+              (edn/read reader))
+            vcr-unserialization-transform)))
 
-    ; This arity-overloaded variant of the function just adds the vcr-dir info to the info map
-    ; returned by the original client.
-    ([]
-     (-> (client)
-         (assoc :vcr-dir vcr-dir)))))
+    (client-info [_]
+      (-> client
+          client-info
+          (assoc :vcr-dir vcr-dir)))))

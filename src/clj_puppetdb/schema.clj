@@ -1,18 +1,13 @@
 (ns clj-puppetdb.schema
   (:require [schema.core :refer [Any Str Int Keyword] :as s])
-  (:import [clojure.lang IFn]))
-
-(def Client
-  "Schema for PuppetDB client map. Note: doesn't check the
-  arity of the function."
-  IFn)
+  (:import [clojure.lang PersistentVector]))
 
 (def PagingParams
   "Schema for params passed to lazy-query."
-  {(s/required-key :limit) Int
-   (s/optional-key :offset) Int
+  {(s/required-key :limit)    Int
+   (s/optional-key :offset)   Int
    (s/required-key :order-by) [{:field (s/either Keyword Str) :order Str}]
-   (s/optional-key :query) clojure.lang.PersistentVector})
+   (s/optional-key :query)    PersistentVector})
 
 (def GetParams
   "Params ready to be passed to GET. Similar to PagingParams, except

@@ -1,8 +1,7 @@
 (ns clj-puppetdb.paging
-  (:require [clj-puppetdb.schema :refer [PagingParams Client]]
+  (:require [clj-puppetdb.schema :refer [PagingParams]]
             [clj-puppetdb.http :refer [GET]]
             [clj-puppetdb.query :as q]
-            [cheshire.core :as json]
             [schema.core :as s]))
 
 (defn- refresh

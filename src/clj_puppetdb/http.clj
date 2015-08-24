@@ -1,9 +1,8 @@
 (ns clj-puppetdb.http
   (:require [cemerick.url :refer [map->query]]
             [cheshire.core :as json]
-            [clj-puppetdb.http-util :as util]
+            [clj-puppetdb.http-core :refer :all]
             [clj-puppetdb.query :as q]
-            [clj-puppetdb.schema :refer [Client]]
             [clj-puppetdb.vcr :refer [make-vcr-client]]
             [clojure.tools.logging :as log]
             [me.raynes.fs :as fs]
@@ -33,31 +32,25 @@
   (let [opts (assoc opts :as :stream)
         info (select-keys opts connection-relevant-opts)
         info (assoc info :host host)]
-    (fn
-      ; This arity-overloaded variant of the function is the one called by the `GET` function.
-      ; The `this` parameter refers under normal circumstances to this very function and it is
-      ; needed to be able to call another arity-overloaded variant of the function from the
-      ; function body. When the `this` parameter refers to a different function then it
-      ; effectively overrides the other arity-overloaded variants of the function.
-      ([this path params]
-       (let [query (if (empty? params)
-                     (str host path)
-                     (str host path \? (-> params
-                                           q/params->json
-                                           map->query)))]
-         ; now call the single argument variant of the function to execute the query
-         (this query)))
+    (reify
+      PdbClient
+      (pdb-get [this path params]
+        (pdb-get this this path params))
+      ; this arity is meant to support a kind of polymorphism
+      (pdb-get [_ that path params]
+        (let [query (if (empty? params)
+                      (str host path)
+                      (str host path \? (-> params
+                                            q/params->json
+                                            map->query)))]
+          (pdb-do-get that query)))
 
-      ; This arity-overloaded variant of the function is the one which actually executes
-      ; the PDB query.
-      ([query]
-       (log/debug (str "GET:" query))
-       (http/get query opts))
+      (pdb-do-get [_ query]
+        (log/debug (str "GET:" query))
+        (http/get query opts))
 
-      ; This arity-overloaded variant of the function returns a map with information about
-      ; this client.
-      ([]
-       info))))
+      (client-info [_]
+        info))))
 
 (defn- file?
   [^String file-path]
@@ -83,7 +76,7 @@
                      cert-keys))]}
   (let [opts (if ssl-context
                opts
-               (assoc opts :ssl-context (apply ssl/pems->ssl-context (map #(->> % (get opts) File. fs/file) cert-keys))))
+               (assoc opts :ssl-context (apply ssl/pems->ssl-context (map #(->> % ^String (get opts) File. fs/file) cert-keys))))
         opts (apply dissoc opts cert-keys)]
     (make-client-common host opts)))
 
@@ -94,9 +87,9 @@
   (let [opts (apply dissoc opts :ssl-context cert-keys)]
     (make-client-common host opts)))
 
-(defn make-client
+(defn ^PdbClient make-client
   [^String host opts]
-  {:post [(s/validate Client %)]}
+  {:post [(satisfies? PdbClient %)]}
   (let [vcr-dir (:vcr-dir opts)
         opts (dissoc opts :vcr-dir)
         client (cond
@@ -158,20 +151,20 @@
 
   You may provide a set of querystring parameters as a map. These will be url-encoded
   automatically and added to the path."
-  ([client :- Client ^String path params]
+  ([^PdbClient client ^String path params]
     {:pre (map? params)}
-    (let [query-info (-> (client)                           ; get client info
+    (let [query-info (-> (client-info client)
                          (assoc :endpoint path)
                          (assoc :params   params))
-          response (-> (client client path params)
+          response (-> (pdb-get client path params)
                        (catching-exceptions (assoc-kind query-info :puppetdb-connection-error)))]
       (if-not (= 200 (:status response))
         (throw (ex-info nil (-> query-info
                                 (assoc-kind :puppetdb-query-error)
                                 (assoc :status (:status response))
-                                (assoc :msg    (slurp (util/make-response-reader response)))))))
+                                (assoc :msg    (slurp (make-response-reader response)))))))
       (let [data (-> response
-                     util/make-response-reader
+                     make-response-reader
                      (decode-stream-catching-parse-exceptions query-info))
             headers (:headers response)]
         [data headers])))

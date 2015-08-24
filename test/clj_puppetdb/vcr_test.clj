@@ -1,6 +1,7 @@
 (ns clj-puppetdb.vcr-test
   (:require [clojure.test :refer :all]
             [clj-puppetdb.core :refer [connect query-with-metadata]]
+            [clj-puppetdb.http-core :refer :all]
             [clj-puppetdb.http :refer :all]
             [clj-puppetdb.vcr :as vcr]
             [puppetlabs.http.client.sync :as http]
@@ -26,7 +27,7 @@
       (fs/delete-dir vcr-dir)
       (testing "when VCR is enabled"
         (let [conn (connect "http://localhost:8080" {:vcr-dir vcr-dir})]
-          (is (= vcr-dir (:vcr-dir (conn))))
+          (is (= vcr-dir (:vcr-dir (client-info conn))))
           (testing "and no recording exists"
             (with-redefs [http/get
                           (fn [& _]
@@ -93,7 +94,7 @@
                                                              (array-map :order-by [(array-map :order "desc" :field :receive-time)] :limit 1)))))))
         (testing "when VCR is not enabled but a recording exists"
           (let [conn (connect "http://localhost:8080")]
-            (is (not (contains? (conn) :vcr-dir)))
+            (is (not (contains? (client-info conn) :vcr-dir)))
             (with-redefs [http/get
                           (fn [& _]
                             ; Return mock data
