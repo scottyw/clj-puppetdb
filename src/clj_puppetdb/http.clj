@@ -151,8 +151,8 @@
 
   You may provide a set of querystring parameters as a map. These will be url-encoded
   automatically and added to the path."
-  ([^PdbClient client ^String path params]
-    {:pre (map? params)}
+  ([client path params]
+    {:pre [(satisfies? PdbClient client) (instance? String path) (map? params)]}
     (let [query-info (-> (client-info client)
                          (assoc :endpoint path)
                          (assoc :params   params))
