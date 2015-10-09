@@ -3,8 +3,8 @@
             [clojure.java.io :as io]
             [clj-puppetdb.http :refer [GET make-client]]
             [clj-puppetdb.http-core :refer :all]
-            [puppetlabs.http.client.sync :as http]
-            [cheshire.core :as json])
+            [cheshire.core :as json]
+            [puppetlabs.http.client.async :as async])
   (:import [clojure.lang ExceptionInfo]))
 
 (defn- test-query-params
@@ -54,13 +54,13 @@
         fake-get (fn[status] {:status status :body (io/input-stream (.getBytes response-data-encoded)) :headers response-headers})]
 
       (testing "Should have proper response"
-        (with-redefs [http/get (fn[_ _] (fake-get 200))]
+        (with-redefs [async/request-with-client (fn[_ _ _] (future (fake-get 200)))]
           (let [GET-response (GET client path params)]
             (is (= (first GET-response) response-data))
             (is (= (second GET-response) response-headers)))))
 
       (testing "Should throw proper exception"
-        (with-redefs [http/get (fn[_ _] (fake-get 400))]
+        (with-redefs [async/request-with-client (fn[_ _ _] (future (fake-get 400)))]
           (try
             (GET client path params)
             (catch ExceptionInfo ei
