@@ -6,7 +6,8 @@
             [clj-puppetdb.vcr :refer [make-vcr-client]]
             [clojure.tools.logging :as log]
             [me.raynes.fs :as fs]
-            [puppetlabs.http.client.sync :as http]
+            [puppetlabs.http.client.async :as http-async]
+            [puppetlabs.http.client.common :as http-common]
             [puppetlabs.ssl-utils.core :as ssl]
             [schema.core :as s])
   (:import [java.io IOException File]
@@ -29,9 +30,9 @@
 
 (defn- make-client-common
   [^String host opts]
-  (let [opts (assoc opts :as :stream)
-        info (select-keys opts connection-relevant-opts)
-        info (assoc info :host host)]
+  (let [conn-opts  (select-keys opts connection-relevant-opts)
+        req-opts (apply dissoc opts connection-relevant-opts)
+        pdb-client (http-async/create-client conn-opts)]
     (reify
       PdbClient
       (pdb-get [this path params]
@@ -47,10 +48,10 @@
 
       (pdb-do-get [_ query]
         (log/debug (str "GET:" query))
-        (http/get query opts))
+        @(http-common/get pdb-client query req-opts))
 
       (client-info [_]
-        info))))
+        (assoc conn-opts :host host)))))
 
 (defn- file?
   [^String file-path]
