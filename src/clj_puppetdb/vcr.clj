@@ -6,7 +6,10 @@
             [me.raynes.fs :as fs]
             [puppetlabs.kitchensink.core :refer [utf8-string->sha1]])
   (:import [java.io File ByteArrayInputStream InputStreamReader BufferedReader PushbackReader InputStream]
+           [java.nio.charset Charset]
            [org.apache.http.entity ContentType]))
+
+(def mock-server "http://pdb-mock-host:0")
 
 (defn rebuild-content-type
   "Rebuild the `:content-type` key in the given `response` map based on the value of the content-type
@@ -25,7 +28,7 @@
   "Turn response body into a string."
   (let [charset (response-charset response)]
     (->> (-> ^InputStream (get response :body)
-             (InputStreamReader. charset)
+             (InputStreamReader. ^Charset charset)
              BufferedReader.
              slurp)
          (assoc response :body))))
@@ -35,7 +38,7 @@
   "Turn response body into a `java.io.InputStream` subclass."
   (let [charset (response-charset response)]
     (->> (-> ^String (get response :body)
-             (.getBytes charset)
+             (.getBytes ^Charset charset)
              ByteArrayInputStream.)
          (assoc response :body))))
 
@@ -45,15 +48,17 @@
 
 (defn- vcr-serialization-transform
   "Prepare the response for searialization."
-  [response]
+  [response mock-query]
   (-> response
       body->string
-      (dissoc :content-type)))
+      (dissoc :content-type)
+      (assoc-in [:opts :url] mock-query)))
 
 (defn- vcr-unserialization-transform
   "Rebuild the response after unseralization."
-  [response]
+  [response query]
   (-> response
+      (assoc-in [:opts :url] query)
       rebuild-content-type
       body->stream))
 
@@ -87,36 +92,37 @@
   a response first. If none is found the original client is called to obtain the response,
   which is then recorded for the future."
   [vcr-dir client]
-  (reify
-    PdbClient
-    (pdb-get [this path params]
-      (pdb-get this this path params))
-    (pdb-get [_ that path params]
-      ; Sort the known nested structures in the query parameters to give us URL stability and
-      ; then delegate to the original client.
-      (->> params
-           normalize-params
-           (pdb-get client that path)))
+  (let [prefix-length (-> client client-info :host count)]
+    (reify
+      PdbClient
+      (pdb-get [this path params]
+        (pdb-get this this path params))
+      (pdb-get [_ that path params]
+        ; Sort the known nested structures in the query parameters to give us URL stability and
+        ; then delegate to the original client.
+        (->> params
+             normalize-params
+             (pdb-get client that path)))
 
-    (pdb-do-get [_ query]
-      (let [file (vcr-file vcr-dir query)]
-        (when-not (fs/exists? file)
-          (let [response (->> query
-                              (pdb-do-get client)
-                              vcr-serialization-transform)]
-            (fs/mkdirs (fs/parent file))
-            (-> file
-                io/writer
-                (spit response))))
-        ; Always read from the file - even if we just wrote it - to fast-fail on serialization errors
-        ; (at the expense of performance)
-        (-> (with-open [reader (-> file
-                                   io/reader
-                                   PushbackReader.)]
-              (edn/read reader))
-            vcr-unserialization-transform)))
+      (pdb-do-get [_ query]
+        (let [mock-query (str mock-server (subs query prefix-length))
+              file (vcr-file vcr-dir mock-query)]
+          (when-not (fs/exists? file)
+            (let [response (-> (pdb-do-get client query)
+                               (vcr-serialization-transform mock-query))]
+              (fs/mkdirs (fs/parent file))
+              (-> file
+                  io/writer
+                  (spit response))))
+          ; Always read from the file - even if we just wrote it - to fast-fail on serialization errors
+          ; (at the expense of performance)
+          (-> (with-open [reader (-> file
+                                     io/reader
+                                     PushbackReader.)]
+                (edn/read reader))
+              (vcr-unserialization-transform query))))
 
-    (client-info [_]
-      (-> client
-          client-info
-          (assoc :vcr-dir vcr-dir)))))
+      (client-info [_]
+        (-> client
+            client-info
+            (assoc :vcr-dir vcr-dir))))))
