@@ -29,10 +29,9 @@
   [:ssl-context :connect-timeout-milliseconds :socket-timeout-milliseconds])
 
 (defn- make-client-common
-  [^String host opts]
+  [http-async-client ^String host opts]
   (let [conn-opts (select-keys opts connection-relevant-opts)
-        req-opts (apply dissoc opts connection-relevant-opts)
-        pdb-client (http-async/create-client conn-opts)]
+        req-opts (apply dissoc opts connection-relevant-opts)]
     (reify
       PdbClient
       (pdb-get [this path params]
@@ -48,7 +47,7 @@
 
       (pdb-do-get [_ query]
         (log/debug (str "GET:" query))
-        @(http-common/get pdb-client query req-opts))
+        @(http-common/get http-async-client query req-opts))
 
       (client-info [_]
         (assoc conn-opts :host host)))))
@@ -62,7 +61,7 @@
         fs/file?)))
 
 (defn- make-https-client
-  [^String host {:keys [ssl-context] :as opts}]
+  [http-async-client ^String host {:keys [ssl-context] :as opts}]
   {:pre [(.startsWith host "https://")
          (map? opts)
          (or (and ssl-context (or (instance? SSLContext ssl-context)
@@ -79,23 +78,23 @@
                opts
                (assoc opts :ssl-context (apply ssl/pems->ssl-context (map #(->> % ^String (get opts) File. fs/file) cert-keys))))
         opts (apply dissoc opts cert-keys)]
-    (make-client-common host opts)))
+    (make-client-common http-async-client host opts)))
 
 (defn- make-http-client
-  [^String host opts]
+  [http-async-client ^String host opts]
   {:pre [(.startsWith host "http://")
          (map? opts)]}
   (let [opts (apply dissoc opts :ssl-context cert-keys)]
-    (make-client-common host opts)))
+    (make-client-common http-async-client host opts)))
 
-(defn ^PdbClient make-client
-  [^String host opts]
+(defn make-client
+  [http-async-client ^String host opts]
   {:post [(satisfies? PdbClient %)]}
   (let [vcr-dir (:vcr-dir opts)
         opts (dissoc opts :vcr-dir)
         client (cond
-                 (.startsWith host "http://") (make-http-client host opts)
-                 (.startsWith host "https://") (make-https-client host opts)
+                 (.startsWith host "http://") (make-http-client http-async-client host opts)
+                 (.startsWith host "https://") (make-https-client http-async-client host opts)
                  :else (throw (IllegalArgumentException. "Host must start either http:// or https://")))]
     (if vcr-dir
       (make-vcr-client vcr-dir client)
